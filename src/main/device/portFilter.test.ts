@@ -7,6 +7,8 @@ describe('串口候选', () => {
     expect(isLikelyEngraverPort('/dev/ttyACM0')).toBe(true)
     expect(isLikelyEngraverPort('COM3')).toBe(true)
     expect(isLikelyEngraverPort('mock://engraver')).toBe(true)
+    expect(isLikelyEngraverPort('/dev/tty.SLAB_USBtoUART')).toBe(true)
+    expect(isLikelyEngraverPort('/dev/cu.wchusbserial1410')).toBe(true)
     expect(isLikelyEngraverPort('/dev/ttyS0')).toBe(false)
     expect(isLikelyEngraverPort('/dev/tty.Bluetooth-Incoming-Port')).toBe(false)
   })

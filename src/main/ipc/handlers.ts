@@ -20,6 +20,15 @@ export function registerIpcHandlers(device: DeviceService): void {
   ipcMain.handle('machine:setSize', (_event, widthMm: number, heightMm: number) =>
     device.setSize(widthMm, heightMm),
   )
+  ipcMain.handle('machine:home', () => device.home())
+  ipcMain.handle('machine:jog', (_event, axis: 'X' | 'Y', distanceMm: number, feed: 100 | 500 | 1000 | 3000) =>
+    device.jog(axis, distanceMm, feed),
+  )
+  ipcMain.handle('machine:pause', () => device.pause())
+  ipcMain.handle('machine:resume', () => device.resume())
+  ipcMain.handle('machine:stop', () => device.halt())
+  ipcMain.handle('machine:reset', () => device.reset())
+  ipcMain.handle('machine:testMove', () => device.testMove())
 
   device.onStatus((status) => {
     broadcast('device:status', status)

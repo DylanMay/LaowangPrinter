@@ -30,6 +30,7 @@ export type DeviceStatus = {
   errorMessage?: string
   machineState?: MachineState
   needsSizeSetup?: boolean
+  activity?: 'homing' | 'jogging' | 'resetting' | 'testing'
   workArea?: {
     widthMm: number
     heightMm: number

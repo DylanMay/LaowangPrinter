@@ -93,6 +93,35 @@ describe('DeviceService', () => {
     expect(status.errorMessage).toContain('雕刻机连接已断开')
     expect(status.errorMessage).toContain('USB')
   })
+
+  it('机器控制发送 $H / $J，停止不 Reset，任何路径不发送 M3', async () => {
+    const backend = createMockEngraverBackend()
+    const service = track(new DeviceService(new SerialManager(backend)))
+    await service.connect()
+    const port = backend.backend.opened.get('mock://engraver')
+    if (!port) throw new Error('missing port')
+    const resetsBefore = port.written.filter((chunk) => {
+      if (typeof chunk === 'string') return chunk.length === 1 && chunk.charCodeAt(0) === 0x18
+      return chunk.length === 1 && chunk[0] === 0x18
+    }).length
+
+    await service.home()
+    await service.jog('Y', -10, 500)
+    await service.testMove()
+    await service.halt()
+    expect(
+      port.written.filter((chunk) => {
+        if (typeof chunk === 'string') return chunk.length === 1 && chunk.charCodeAt(0) === 0x18
+        return chunk.length === 1 && chunk[0] === 0x18
+      }).length,
+    ).toBe(resetsBefore)
+
+    const blob = port.written.map((chunk) => (typeof chunk === 'string' ? chunk : chunk.toString('utf8'))).join('')
+    expect(blob).toContain('$H')
+    expect(blob).toContain('$J=G91 G21 Y-10 F500')
+    expect(blob).toContain('$J=G91 G21 X1 F100')
+    expect(blob).not.toMatch(/\bM3\b/)
+  })
 })
 
 describe('toAppError', () => {

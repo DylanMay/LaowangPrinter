@@ -38,4 +38,6 @@ export type GrblMessage =
 
 export const STATUS_POLL_MS = 250
 export const REALTIME_STATUS = '?'
+export const REALTIME_HOLD = '!'
+export const REALTIME_RESUME = '~'
 export const REALTIME_RESET = 0x18

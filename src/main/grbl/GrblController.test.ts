@@ -93,4 +93,44 @@ describe('GrblController', () => {
     await expect(controller.identify()).rejects.toMatchObject({ code: 'NOT_GRBL' })
     await serial.disconnect()
   })
+
+  it('home / jog / pause / resume / halt / reset，且不发送 M3', async () => {
+    const backend = createMockEngraverBackend()
+    const serial = new SerialManager(backend)
+    const controller = new GrblController(serial)
+    running.push(controller)
+    await serial.connect('mock://engraver')
+    await controller.identify()
+    const port = backend.backend.opened.get('mock://engraver')
+    if (!port) throw new Error('missing port')
+    const resetsBefore = port.written.filter(isResetChunk).length
+
+    await controller.home()
+    await controller.jog({ axis: 'X', distanceMm: 1, feed: 100 })
+    await controller.pause()
+    await controller.resume()
+    await controller.halt()
+    expect(port.written.filter(isResetChunk).length).toBe(resetsBefore)
+    await controller.reset()
+    expect(port.written.filter(isResetChunk).length).toBeGreaterThan(resetsBefore)
+
+    const blob = port.written.map(asText).join('')
+    expect(blob).toContain('$H')
+    expect(blob).toContain('$J=G91 G21 X1 F100')
+    expect(blob).toContain('!')
+    expect(blob).toContain('~')
+    expect(blob).not.toMatch(/\bM3\b|\bM4\b/)
+    await expect(controller.sendLine('M3 S200')).rejects.toMatchObject({ code: 'LASER_BLOCKED' })
+    expect(port.written.map(asText).join('')).not.toMatch(/M3 S200/)
+    await serial.disconnect()
+  })
 })
+
+function asText(chunk: string | Buffer): string {
+  return typeof chunk === 'string' ? chunk : chunk.toString('utf8')
+}
+
+function isResetChunk(chunk: string | Buffer): boolean {
+  if (typeof chunk === 'string') return chunk.length === 1 && chunk.charCodeAt(0) === 0x18
+  return chunk.length === 1 && chunk[0] === 0x18
+}

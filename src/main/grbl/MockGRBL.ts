@@ -133,7 +133,29 @@ export class MockGRBL {
       this.replyOk()
       return
     }
-    if (/^\$\d+$/.test(line) || /^G0\b/i.test(line) || line === '$H') {
+    if (line === '$H') {
+      this.state = 'Home'
+      this.position = { x: 0, y: 0, z: 0 }
+      this.state = 'Idle'
+      this.replyOk()
+      return
+    }
+    const jog = /^\$J=/i.exec(line)
+    if (jog) {
+      if (/\bM3\b|\bM4\b/i.test(line)) {
+        this.emit('error:20\r\n')
+        return
+      }
+      const x = /X(-?\d+(?:\.\d+)?)/i.exec(line)
+      const y = /Y(-?\d+(?:\.\d+)?)/i.exec(line)
+      if (x) this.position.x += Number(x[1])
+      if (y) this.position.y += Number(y[1])
+      this.state = 'Jog'
+      this.replyOk()
+      this.state = 'Idle'
+      return
+    }
+    if (/^\$\d+$/.test(line) || /^G0\b/i.test(line)) {
       this.replyOk()
       return
     }
