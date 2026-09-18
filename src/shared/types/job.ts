@@ -22,6 +22,7 @@ export type JobStartOptions = {
   dryRun?: boolean
   lowPowerTest?: boolean
   confirmLowPower?: boolean
+  confirmed?: boolean
 }
 
 export type JobEventName = 'job:progress' | 'job:paused' | 'job:completed' | 'job:error'

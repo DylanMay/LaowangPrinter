@@ -26,6 +26,21 @@ describe('MockSerialPort / SerialManager', () => {
     expect(manager.connected).toBe(false)
   })
 
+  it('记录往来数据，但跳过状态轮询', async () => {
+    const { backend, path } = backendWithPort()
+    const manager = new SerialManager(backend)
+    await manager.connect(path)
+    await manager.write('G0 X0\n')
+    await manager.write('?')
+    backend.opened.get(path)?.simulateData(Buffer.from('ok\n'))
+    backend.opened.get(path)?.simulateData(Buffer.from('<Idle|MPos:0.000,0.000,0.000>\n'))
+    expect(manager.getLog().some((line) => line.includes('G0 X0'))).toBe(true)
+    expect(manager.getLog().some((line) => line.includes('ok'))).toBe(true)
+    expect(manager.getLog().some((line) => line.includes('?'))).toBe(false)
+    expect(manager.getLog().some((line) => line.includes('<Idle'))).toBe(false)
+    await manager.disconnect()
+  })
+
   it('USB 拔出触发 close / disconnected', async () => {
     const { backend, path } = backendWithPort()
     const manager = new SerialManager(backend)

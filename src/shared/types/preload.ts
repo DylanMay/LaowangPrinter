@@ -1,5 +1,5 @@
 import type { DeviceStatus, PublicDevice } from './state'
-import type { MachineConfig } from './machine'
+import type { AdvancedSnapshot, MachineConfig } from './machine'
 import type { OpenSvgResult } from './svg'
 import type { JobEventName, JobProgress, JobStartOptions } from './job'
 
@@ -20,6 +20,7 @@ export type DeviceApi = {
 
 export type MachineApi = {
   getConfig: () => Promise<MachineConfig | null>
+  getAdvanced: () => Promise<AdvancedSnapshot>
   setSize: (widthMm: number, heightMm: number) => Promise<DeviceStatus>
   home: () => Promise<DeviceStatus>
   jog: (axis: 'X' | 'Y', distanceMm: number, feed: 100 | 500 | 1000 | 3000) => Promise<DeviceStatus>

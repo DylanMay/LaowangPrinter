@@ -1,3 +1,4 @@
+import { COPY } from '@shared/copy'
 import { checkJobSafety } from '@shared/job/SafetyChecker'
 import type { JobEventName, JobProgress, JobStartOptions } from '@shared/types/job'
 import type { DeviceService } from '../device/DeviceService'
@@ -27,7 +28,12 @@ export class JobService {
 
   async start(options: JobStartOptions): Promise<JobProgress> {
     const status = this.device.getStatus()
-    const lines = prepareLines(options.lines ?? [], Boolean(options.dryRun))
+    const dryRun = Boolean(options.dryRun)
+    const confirmed = Boolean(options.confirmed)
+    if (!dryRun && !confirmed) {
+      throw new Error(COPY.needsConfirm)
+    }
+    const lines = prepareLines(options.lines ?? [], dryRun)
     const safety = checkJobSafety({
       connected: status.state === 'connected',
       alarm: status.machineState === 'alarm',
@@ -40,7 +46,8 @@ export class JobService {
     await this.sender.start({
       ...options,
       lines,
-      dryRun: Boolean(options.dryRun),
+      dryRun,
+      confirmed,
     })
     return this.sender.getProgress()
   }

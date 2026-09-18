@@ -14,6 +14,7 @@ export function HomePage() {
   const moveTested = useAppStore((state) => state.moveTested)
   const testMove = useAppStore((state) => state.testMove)
   const activity = useAppStore((state) => state.activity)
+  const guideOpen = useAppStore((state) => state.guideOpen)
   const connected = deviceState === 'connected'
   const busy = deviceState === 'detecting' || deviceState === 'connecting'
   const connectLabel = busy
@@ -38,7 +39,7 @@ export function HomePage() {
       {connected ? (
         <div className="flex flex-col items-center gap-3">
           <p className="text-sm font-semibold text-brand">{deviceName ?? COPY.myMachine}</p>
-          {!needsSizeSetup && !moveTested ? (
+          {!needsSizeSetup && !moveTested && !guideOpen ? (
             <div className="flex flex-col items-center gap-2">
               <p className="text-[13px] text-muted">{COPY.firstTestHint}</p>
               <button

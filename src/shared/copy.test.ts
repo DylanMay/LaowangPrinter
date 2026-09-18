@@ -55,5 +55,22 @@ describe('普通用户文案', () => {
     expect(COPY.jobCompleted).toBe('雕刻完成')
     expect(COPY.pause).toBe('暂停')
     expect(COPY.lowPowerNeedsConfirm).toContain('单独确认')
+    expect(COPY.needsConfirm).toContain('确认检查项')
+  })
+
+  it('首次引导五步使用中文，不出现协议术语', () => {
+    expect(COPY.guideConnectTitle).toBe('连接雕刻机')
+    expect(COPY.guideConfirmTitle).toBe('确认设备')
+    expect(COPY.guideMoveTitle).toBe('测试机器移动')
+    expect(COPY.guidePlaceTitle).toBe('放置材料')
+    expect(COPY.guideStartTitle).toBe('开始第一次雕刻')
+    expect(COPY.guideStartBody).toContain('空载测试')
+  })
+
+  it('高级设置标签不把协议术语写进文案常量', () => {
+    expect(COPY.advancedTitle).toBe('高级设置')
+    expect(COPY.advancedPort).toBe('接口')
+    expect(COPY.serialLogTitle).toBe('通信记录')
+    expect(COPY.settingsBody).toContain('排查问题')
   })
 })
