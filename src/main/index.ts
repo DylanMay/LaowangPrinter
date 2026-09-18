@@ -1,5 +1,6 @@
 import { registerIpcHandlers } from './ipc/handlers'
 import { DeviceService } from './device/DeviceService'
+import { JobService } from './job/JobService'
 import { env } from 'node:process'
 import { createSerialBackend } from './serial/createBackend'
 import { SerialManager } from './serial/SerialManager'
@@ -8,6 +9,7 @@ import { join } from 'node:path'
 
 const serial = new SerialManager(createSerialBackend())
 const device = new DeviceService(serial)
+const job = new JobService(device)
 
 function createWindow(): void {
   const window = new BrowserWindow({
@@ -42,7 +44,7 @@ function createWindow(): void {
 
 app.whenReady().then(async () => {
   Menu.setApplicationMenu(null)
-  registerIpcHandlers(device)
+  registerIpcHandlers(device, job)
   await device.startWatching()
   createWindow()
 

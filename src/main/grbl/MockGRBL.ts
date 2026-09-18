@@ -11,6 +11,7 @@ export type MockGrblOptions = {
   omitTravel?: boolean
   settings?: Record<number, number>
   delayOkMs?: number
+  delayMotionMs?: number
 }
 
 const DEFAULT_SETTINGS: Record<number, number> = {
@@ -38,6 +39,8 @@ export class MockGRBL {
   parserState = 'G0 G54 G17 G21 G90 G94 M5 M9 T0 F0 S0'
   position = { x: 0, y: 0, z: 0 }
   holdOk = false
+  spindleOn = false
+  delayMotionMs = 0
   private port: MockGrblHost | null = null
   private lineBuf = ''
   private pendingOk: (() => void) | null = null
@@ -50,6 +53,7 @@ export class MockGRBL {
       delete this.settings[131]
     }
     this.holdOk = (options.delayOkMs ?? 0) > 0
+    this.delayMotionMs = options.delayMotionMs ?? 0
   }
 
   attach(port: MockGrblHost): this {
@@ -155,11 +159,34 @@ export class MockGRBL {
       this.state = 'Idle'
       return
     }
-    if (/^\$\d+$/.test(line) || /^G0\b/i.test(line)) {
+    if (/^\$\d+$/.test(line)) {
       this.replyOk()
       return
     }
+    if (/^G21\b|^G90\b|^G0\b|^G1\b|^M3\b|^M4\b|^M5\b|^S\d+/i.test(line)) {
+      this.applyMotion(line)
+      this.replyOk(this.delayMotionMs > 0 && /^(G0|G1)\b/i.test(line) ? this.delayMotionMs : 0)
+      return
+    }
     this.emit('error:20\r\n')
+  }
+
+  private applyMotion(line: string): void {
+    const x = /X(-?\d+(?:\.\d+)?)/i.exec(line)
+    const y = /Y(-?\d+(?:\.\d+)?)/i.exec(line)
+    if (x) this.position.x = Number(x[1])
+    if (y) this.position.y = Number(y[1])
+    if (/^M3\b|^M4\b/i.test(line)) {
+      this.spindleOn = true
+      this.parserState = this.parserState.replace(/\bM5\b/, 'M3')
+    }
+    if (/^M5\b/i.test(line)) {
+      this.spindleOn = false
+      this.parserState = this.parserState.replace(/\bM3\b/, 'M5')
+    }
+    if (/^(G0|G1)\b/i.test(line) && this.state !== 'Hold') {
+      this.state = 'Run'
+    }
   }
 
   private emitSettings(): void {
@@ -175,12 +202,20 @@ export class MockGRBL {
     )
   }
 
-  private replyOk(): void {
+  private replyOk(delayMs = 0): void {
+    const send = () => {
+      this.emit('ok\r\n')
+      if (this.state === 'Run' || this.state === 'Jog') this.state = 'Idle'
+    }
     if (this.holdOk) {
-      this.pendingOk = () => this.emit('ok\r\n')
+      this.pendingOk = send
       return
     }
-    this.emit('ok\r\n')
+    if (delayMs > 0) {
+      setTimeout(send, delayMs)
+      return
+    }
+    send()
   }
 
   private emit(text: string): void {

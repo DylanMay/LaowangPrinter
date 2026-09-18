@@ -4,6 +4,7 @@ import { HomePage } from './pages/HomePage'
 import { JobPage } from './pages/JobPage'
 import { PreviewPage } from './pages/PreviewPage'
 import { WorkspacePage } from './pages/WorkspacePage'
+import { ConfirmDialog } from './components/ConfirmDialog'
 import { MachinePanel } from './components/MachinePanel'
 import { useAppStore } from './store/appStore'
 import { COPY } from '@shared/copy'
@@ -68,6 +69,7 @@ export function App() {
         <HomePage />
       )}
       {panelOpen ? <MachinePanel /> : null}
+      <ConfirmDialog />
     </div>
   )
 }

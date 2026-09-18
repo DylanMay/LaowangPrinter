@@ -1,6 +1,9 @@
 import type { DeviceStatus, PublicDevice } from './state'
 import type { MachineConfig } from './machine'
 import type { OpenSvgResult } from './svg'
+import type { JobEventName, JobProgress, JobStartOptions } from './job'
+
+export type { JobEventName, JobProgress, JobStartOptions }
 
 export type AppApi = {
   getName: () => string
@@ -32,6 +35,15 @@ export type FileApi = {
   importDropped: (file: File) => Promise<OpenSvgResult>
 }
 
+export type JobApi = {
+  start: (options: JobStartOptions) => Promise<JobProgress>
+  pause: () => Promise<void>
+  resume: () => Promise<void>
+  stop: () => Promise<void>
+  getProgress: () => Promise<JobProgress>
+  on: (event: JobEventName, listener: (progress: JobProgress) => void) => () => void
+}
+
 export type DeviceEventName =
   | 'device:connected'
   | 'device:disconnected'
@@ -44,6 +56,7 @@ declare global {
     device: DeviceApi
     machine: MachineApi
     file: FileApi
+    job: JobApi
   }
 }
 
