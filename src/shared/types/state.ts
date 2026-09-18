@@ -28,6 +28,12 @@ export type DeviceStatus = {
   state: DeviceState
   displayName?: string
   errorMessage?: string
+  machineState?: MachineState
+  needsSizeSetup?: boolean
+  workArea?: {
+    widthMm: number
+    heightMm: number
+  }
 }
 
 export type PublicDevice = {

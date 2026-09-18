@@ -14,4 +14,9 @@ describe('普通用户文案', () => {
     const blob = JSON.stringify(COPY)
     expect(blob).not.toMatch(/GRBL|G-code|COM3|115200|M3|Feed Rate/i)
   })
+
+  it('尺寸引导只用工作区域语言', () => {
+    expect(COPY.sizeSetupTitle).toBe('设置工作区域')
+    expect(COPY.sizeUnit).toBe('毫米')
+  })
 })

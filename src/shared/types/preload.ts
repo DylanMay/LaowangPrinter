@@ -1,4 +1,5 @@
 import type { DeviceStatus, PublicDevice } from './state'
+import type { MachineConfig } from './machine'
 
 export type AppApi = {
   getName: () => string
@@ -13,6 +14,11 @@ export type DeviceApi = {
   on: (event: DeviceEventName, listener: (status: DeviceStatus) => void) => () => void
 }
 
+export type MachineApi = {
+  getConfig: () => Promise<MachineConfig | null>
+  setSize: (widthMm: number, heightMm: number) => Promise<DeviceStatus>
+}
+
 export type DeviceEventName =
   | 'device:connected'
   | 'device:disconnected'
@@ -23,6 +29,7 @@ declare global {
   interface Window {
     app: AppApi
     device: DeviceApi
+    machine: MachineApi
   }
 }
 

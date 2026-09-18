@@ -21,4 +21,11 @@ export const COPY = {
   helpBody: '用雕刻机附带的数据线接到电脑。如果开着别的雕刻软件，请先退出。',
   settingsBody: '高级设置会在后续版本提供。现在不用填写端口或波特率。',
   importLater: '图案导入会在后续版本提供。',
+  sizeSetupTitle: '设置工作区域',
+  sizeSetupLead: '量一下台面能刻的宽和高，填好后就可以开始了。',
+  sizeWidth: '宽',
+  sizeHeight: '高',
+  sizeUnit: '毫米',
+  sizeDone: '完成',
+  sizeInvalid: '请填写有效的宽和高。',
 } as const

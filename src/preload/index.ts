@@ -30,3 +30,9 @@ contextBridge.exposeInMainWorld('device', {
     }
   },
 })
+
+contextBridge.exposeInMainWorld('machine', {
+  getConfig: () => ipcRenderer.invoke('machine:getConfig'),
+  setSize: (widthMm: number, heightMm: number) =>
+    ipcRenderer.invoke('machine:setSize', widthMm, heightMm),
+})

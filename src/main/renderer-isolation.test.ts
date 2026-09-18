@@ -22,6 +22,7 @@ describe('Renderer 隔离', () => {
       expect(source, file).not.toMatch(/from ['"]fs['"]/)
       expect(source, file).not.toMatch(/from ['"]node:fs['"]/)
       expect(source, file).not.toMatch(/from ['"]serialport['"]/)
+      expect(source, file).not.toMatch(/from ['"].*\/grbl\//)
       expect(source, file).not.toMatch(/require\(/)
     }
   })
