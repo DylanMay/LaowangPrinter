@@ -4,7 +4,7 @@
 
 > 让软件理解机器，让用户只需要理解自己想刻什么。
 
-当前仓库处于 MVP 文档与 UI 原型阶段，应用代码按开发计划分 Phase 实现，完成后须停止等待下一指令。
+当前进度：**Phase 1 项目基础架构**（Electron 三层空壳）。尚未实现串口、GRBL 或雕刻。
 
 ## 文档
 
@@ -40,32 +40,18 @@ python3 -m http.server 4173 --directory docs/ui
 
 DXF、灰度图雕刻、相机、AI、云账号、商城、复杂刀路优化。详见产品文档。
 
-## 技术栈（规划）
+## 技术栈
 
-Electron · React · TypeScript · Vite · serialport · Zustand · Tailwind CSS · Vitest
+Electron · React · TypeScript · Vite · Zustand · Tailwind CSS · Vitest
 
 必须采用 Main / Preload / Renderer 三层，且 `contextIsolation: true`、`nodeIntegration: false`。
 
-## 开发阶段
-
-1. 项目基础架构
-2. 串口
-3. GRBL
-4. 机器控制
-5. SVG
-6. Canvas
-7. G-code
-8. Sender
-9. 傻瓜化 UX
-10. 完整 MVP 验收
-
-每个 Phase 结束后运行 `npm test` 与 `npm run build`，汇报变更与测试结果，然后停止。
-
-## 命令（应用代码落地后）
+## 命令
 
 ```bash
 npm install
 npm run dev
 npm test
+npm run lint
 npm run build
 ```

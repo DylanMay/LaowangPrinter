@@ -1,0 +1,27 @@
+@import 'tailwindcss';
+
+@theme {
+  --font-sans: 'Noto Sans SC', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  --color-paper: #f3eee6;
+  --color-paper-2: #e8e1d6;
+  --color-surface: #fffcf7;
+  --color-ink: #1c1814;
+  --color-muted: #6b645c;
+  --color-faint: #8f877c;
+  --color-line: #e4dcd0;
+  --color-brand: #215c4c;
+  --color-brand-soft: #e5f0eb;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+}
