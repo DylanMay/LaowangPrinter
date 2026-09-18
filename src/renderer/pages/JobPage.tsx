@@ -5,6 +5,7 @@ import { canStart } from '@shared/geometry/CoordinateTransformer'
 import { formatSizeMm } from '@shared/types/workspace'
 import { WorkspaceCanvas } from '../components/WorkspaceCanvas'
 import { jobGcode } from '../gcode/jobGcode'
+import { materialLabel, runningLabel, startLabel } from '../labels'
 import { useAppStore } from '../store/appStore'
 
 export function JobPage() {
@@ -36,14 +37,18 @@ export function JobPage() {
     thicknessMm,
     effect,
     dryRun: workMode === 'dry',
+    lowPower: workMode === 'low',
   })
   const [placed, setPlaced] = useState(false)
   const [safe, setSafe] = useState(false)
   const [fits, setFits] = useState(false)
+  const [laserWarn, setLaserWarn] = useState(false)
   const dry = workMode === 'dry' || job.dryRun
-  const checksOk = dry ? true : placed && safe && fits
+  const low = workMode === 'low' || Boolean(job.lowPowerTest)
+  const checksOk = dry ? true : placed && safe && fits && (low ? laserWarn : true)
   const canConfirmStart = connected && Boolean(imported) && inBounds && Boolean(gcode) && checksOk
   const state = job.state
+  const readyHint = dry ? COPY.dryRunMoveHint : low ? COPY.lowPowerHint : COPY.jobReady
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -53,7 +58,7 @@ export function JobPage() {
       <section className="shrink-0 border-t border-line bg-surface px-6 py-5">
         {state === 'running' ? (
           <RunningBar
-            dry={dry}
+            title={runningLabel(dry, low)}
             percent={job.percent}
             remaining={job.remainingSeconds}
             onPause={() => void pauseJob()}
@@ -97,14 +102,13 @@ export function JobPage() {
           <div className="mx-auto flex w-[640px] max-w-full flex-col gap-4">
             <div>
               <h2 className="text-xl font-semibold">{COPY.jobPlaceholderTitle}</h2>
-              <p className="mt-1 text-[13px] leading-relaxed text-muted">
-                {dry ? COPY.dryRunMoveHint : COPY.jobReady}
-              </p>
+              <p className="mt-1 text-[13px] leading-relaxed text-muted">{readyHint}</p>
             </div>
             <ul className="space-y-2 text-[14px]">
               <li>{connected ? '✓' : '○'} {COPY.deviceConnected}</li>
               <li>{imported ? '✓' : '○'} {COPY.importReady}</li>
               <li>{inBounds ? '✓' : '○'} {COPY.patternInBounds}</li>
+              <li>✓ {COPY.material} {materialLabel(material, thicknessMm, low ? 'light' : effect)}</li>
               {gcode ? (
                 <li>✓ {COPY.timeLabel} {formatDuration(gcode.estimatedTime)}</li>
               ) : null}
@@ -117,6 +121,7 @@ export function JobPage() {
                 <Check label={COPY.placeMaterial} checked={placed} onChange={setPlaced} />
                 <Check label={COPY.workAreaSafe} checked={safe} onChange={setSafe} />
                 <Check label={COPY.materialOk} checked={fits} onChange={setFits} />
+                {low ? <Check label={COPY.lowPowerConfirm} checked={laserWarn} onChange={setLaserWarn} /> : null}
               </div>
             )}
             <div className="flex justify-end gap-2">
@@ -133,7 +138,7 @@ export function JobPage() {
                 onClick={() => void startJob(true)}
                 className="h-11 rounded-xl bg-ink px-4 text-sm font-semibold text-white disabled:bg-[#ddd6cb] disabled:text-[#8a8278]"
               >
-                {dry ? COPY.startDryRun : COPY.startEngrave}
+                {startLabel(workMode)}
               </button>
             </div>
           </div>
@@ -144,13 +149,13 @@ export function JobPage() {
 }
 
 function RunningBar({
-  dry,
+  title,
   percent,
   remaining,
   onPause,
   onStop,
 }: {
-  dry: boolean
+  title: string
   percent: number
   remaining: number
   onPause: () => void
@@ -159,7 +164,7 @@ function RunningBar({
   return (
     <div className="mx-auto flex w-[720px] max-w-full flex-col gap-3">
       <div className="flex items-center justify-between gap-3">
-        <h2 className="text-lg font-semibold">{dry ? COPY.dryRunning : COPY.engraving}</h2>
+        <h2 className="text-lg font-semibold">{title}</h2>
         <p className="text-[13px] text-muted">
           {percent}% · {COPY.remainingLabel} {formatDuration(remaining)}
         </p>

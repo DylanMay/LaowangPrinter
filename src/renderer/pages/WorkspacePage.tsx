@@ -7,6 +7,7 @@ import { useAppStore } from '../store/appStore'
 import { PreviewOverlay } from '../components/PreviewOverlay'
 import { WorkspaceCanvas } from '../components/WorkspaceCanvas'
 import { jobGcode } from '../gcode/jobGcode'
+import { materialLabel, workModeHint } from '../labels'
 
 export function WorkspacePage() {
   const imported = useAppStore((state) => state.imported)
@@ -38,6 +39,7 @@ export function WorkspacePage() {
     thicknessMm,
     effect,
     dryRun: workMode === 'dry',
+    lowPower: workMode === 'low',
   })
 
   return (
@@ -85,7 +87,7 @@ export function WorkspacePage() {
         <div className="text-[12px] text-muted">
           {COPY.material}
           <div className="text-[15px] font-semibold text-ink">
-            {materialSummary(material, thicknessMm, effect)}
+              {materialLabel(material, thicknessMm, effect)}
           </div>
         </div>
         {notice ? <p className="max-w-sm text-[12px] text-muted">{notice}</p> : <div className="flex-1" />}
@@ -133,7 +135,7 @@ function PropertyPanel() {
   if (!placement) return null
 
   return (
-    <aside className="w-[300px] shrink-0 overflow-auto border-l border-line bg-surface p-4">
+    <aside className="w-[300px] min-w-0 shrink-0 overflow-x-hidden overflow-y-auto border-l border-line bg-surface p-4">
       <div className="flex flex-col gap-5">
         <section>
           <h3 className="text-[15px] font-semibold">{COPY.sizeSection}</h3>
@@ -226,23 +228,33 @@ function PropertyPanel() {
 
         <section>
           <h3 className="text-[15px] font-semibold">{COPY.workMode}</h3>
+          <button
+            type="button"
+            onClick={() => setWorkMode('dry')}
+            className={[
+              'mt-2 h-9 w-full rounded-xl border border-line text-[13px] font-semibold',
+              workMode === 'dry' ? 'bg-ink text-white' : 'bg-paper',
+            ].join(' ')}
+          >
+            {COPY.dryRun}
+          </button>
           <div className="mt-2 grid grid-cols-2 overflow-hidden rounded-xl border border-line">
             <button
               type="button"
-              onClick={() => setWorkMode('dry')}
-              className={['h-9 text-[13px] font-semibold', workMode === 'dry' ? 'bg-ink text-white' : 'bg-paper'].join(' ')}
+              onClick={() => setWorkMode('low')}
+              className={['h-9 px-1 text-[12px] font-semibold', workMode === 'low' ? 'bg-ink text-white' : 'bg-paper'].join(' ')}
             >
-              {COPY.dryRun}
+              {COPY.lowPower}
             </button>
             <button
               type="button"
               onClick={() => setWorkMode('engrave')}
-              className={['h-9 text-[13px] font-semibold', workMode === 'engrave' ? 'bg-ink text-white' : 'bg-paper'].join(' ')}
+              className={['h-9 px-1 text-[12px] font-semibold', workMode === 'engrave' ? 'bg-ink text-white' : 'bg-paper'].join(' ')}
             >
               {COPY.engrave}
             </button>
           </div>
-          <p className="mt-2 text-[12px] leading-relaxed text-muted">{COPY.dryRunHint}</p>
+          <p className="mt-2 text-[12px] leading-relaxed text-muted">{workModeHint(workMode)}</p>
         </section>
 
         <p className="text-[12px] leading-relaxed text-muted">{COPY.effectDisclaimer}</p>
@@ -274,24 +286,4 @@ function SizeField({ value, onCommit }: { value: number; onCommit: (value: numbe
 
 function roundInput(value: number): number {
   return Math.round(value * 10) / 10
-}
-
-function materialSummary(
-  material: 'wood' | 'bamboo' | 'cardboard' | 'leather' | 'acrylic',
-  thicknessMm: number,
-  effect: 'light' | 'standard' | 'deep',
-): string {
-  const names = {
-    wood: COPY.wood,
-    bamboo: COPY.bamboo,
-    cardboard: COPY.cardboard,
-    leather: COPY.leather,
-    acrylic: COPY.acrylic,
-  }
-  const effects = {
-    light: COPY.effectLight,
-    standard: COPY.effectStandard,
-    deep: COPY.effectDeep,
-  }
-  return `${thicknessMm}mm ${names[material]} · ${effects[effect]}`
 }

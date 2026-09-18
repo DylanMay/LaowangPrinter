@@ -56,6 +56,9 @@ describe('普通用户文案', () => {
     expect(COPY.pause).toBe('暂停')
     expect(COPY.lowPowerNeedsConfirm).toContain('单独确认')
     expect(COPY.needsConfirm).toContain('确认检查项')
+    expect(COPY.lowPower).toBe('低功率测试')
+    expect(COPY.lowPowerConfirm).toContain('仍可能产生激光')
+    expect(COPY.startLowPower).toBe('开始低功率测试')
   })
 
   it('首次引导五步使用中文，不出现协议术语', () => {

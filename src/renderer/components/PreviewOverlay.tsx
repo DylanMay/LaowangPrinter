@@ -3,6 +3,7 @@ import { formatDuration } from '@shared/gcode/GCodeEstimator'
 import { formatSizeMm } from '@shared/types/workspace'
 import { PreviewCanvas } from './PreviewCanvas'
 import { jobGcode } from '../gcode/jobGcode'
+import { materialLabel, startLabel } from '../labels'
 import { useAppStore } from '../store/appStore'
 
 export function PreviewOverlay() {
@@ -27,10 +28,9 @@ export function PreviewOverlay() {
     thicknessMm,
     effect,
     dryRun: workMode === 'dry',
+    lowPower: workMode === 'low',
   })
   if (!imported || !placement || !workArea || !gcode) return null
-
-  const startLabel = workMode === 'dry' ? COPY.startDryRun : COPY.startEngrave
 
   return (
     <div className="absolute inset-0 z-10 flex bg-paper">
@@ -53,16 +53,18 @@ export function PreviewOverlay() {
         <p className="text-[13px] text-muted">
           {COPY.material}{' '}
           <b className="font-semibold text-ink">
-            {thicknessMm}mm {materialName(material)}
+            {materialLabel(material, thicknessMm, workMode === 'low' ? 'light' : effect)}
           </b>
         </p>
         <p className="text-[13px] text-muted">
           {COPY.effect}{' '}
-          <b className="font-semibold text-ink">{effectName(effect)}</b>
+          <b className="font-semibold text-ink">{effectName(workMode === 'low' ? 'light' : effect)}</b>
         </p>
         <p className="text-[13px] text-muted">
           {COPY.workMode}{' '}
-          <b className="font-semibold text-ink">{workMode === 'dry' ? COPY.dryRun : COPY.engrave}</b>
+          <b className="font-semibold text-ink">
+            {workMode === 'dry' ? COPY.dryRun : workMode === 'low' ? COPY.lowPower : COPY.engrave}
+          </b>
         </p>
         <p className="text-[12px] leading-relaxed text-muted">{COPY.effectDisclaimer}</p>
         <div className="mt-auto flex flex-col gap-2">
@@ -79,22 +81,12 @@ export function PreviewOverlay() {
             onClick={goJob}
             className="h-11 rounded-xl bg-ink px-4 text-sm font-semibold text-white disabled:bg-[#ddd6cb] disabled:text-[#8a8278]"
           >
-            {startLabel}
+            {startLabel(workMode)}
           </button>
         </div>
       </aside>
     </div>
   )
-}
-
-function materialName(material: 'wood' | 'bamboo' | 'cardboard' | 'leather' | 'acrylic'): string {
-  return {
-    wood: COPY.wood,
-    bamboo: COPY.bamboo,
-    cardboard: COPY.cardboard,
-    leather: COPY.leather,
-    acrylic: COPY.acrylic,
-  }[material]
 }
 
 function effectName(effect: 'light' | 'standard' | 'deep'): string {

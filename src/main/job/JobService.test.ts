@@ -49,6 +49,21 @@ describe('JobService', () => {
     expect(ctx.job.getProgress().state).toBe('completed')
   })
 
+  it('低功率测试即使已确认任务，仍需单独确认才开光', async () => {
+    const ctx = await setup()
+    const before = gcodeWrites(ctx.port.written).length
+    await expect(
+      ctx.job.start({
+        lines: SAMPLE,
+        estimatedTime: 4,
+        dryRun: false,
+        confirmed: true,
+        lowPowerTest: true,
+      }),
+    ).rejects.toThrow(COPY.lowPowerNeedsConfirm)
+    expect(gcodeWrites(ctx.port.written).length).toBe(before)
+  })
+
   async function setup() {
     const backend = createMockEngraverBackend()
     const serial = new SerialManager(backend)
