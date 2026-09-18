@@ -1,5 +1,5 @@
 import { registerIpcHandlers } from './ipc/handlers'
-import { app, BrowserWindow } from 'electron'
+import { app, BrowserWindow, Menu } from 'electron'
 import { join } from 'node:path'
 
 function createWindow(): void {
@@ -11,6 +11,7 @@ function createWindow(): void {
     title: '老王打印机',
     backgroundColor: '#F3EEE6',
     show: false,
+    autoHideMenuBar: true,
     webPreferences: {
       preload: join(__dirname, '../preload/index.mjs'),
       contextIsolation: true,
@@ -31,6 +32,7 @@ function createWindow(): void {
 }
 
 app.whenReady().then(() => {
+  Menu.setApplicationMenu(null)
   registerIpcHandlers()
   createWindow()
 
