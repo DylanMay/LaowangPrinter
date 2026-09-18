@@ -102,12 +102,12 @@
                       <label>宽</label>
                       <input id="widthInput" value="50 mm" />
                     </div>
-                    <button class="lock" type="button" title="锁定比例">锁</button>
                     <div class="field">
                       <label>高</label>
                       <input id="heightInput" value="30 mm" />
                     </div>
                   </div>
+                  <label class="lock-row"><input type="checkbox" checked /> 锁定比例</label>
                   <div class="quiet" style="margin-top:8px">
                     <button class="btn" type="button" data-toast="已居中">居中</button>
                     <button class="btn" type="button" data-toast="已适应工作区">适应工作区</button>
@@ -179,28 +179,33 @@
 
         <div class="toast" id="toast"></div>
 
-      <div class="overlay" data-overlay="preview">
-        <div class="bed" style="width:72%; position:relative" id="previewBed">
-          <div class="pattern">
-            <svg viewBox="0 0 100 60" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round">
-              <circle cx="78" cy="16" r="7" />
-              <path d="M8 50 L30 22 L46 38 L62 20 L92 50" />
-              <path d="M8 50 H92" />
-            </svg>
+      <div class="overlay overlay-preview" data-overlay="preview">
+        <div class="preview-layout">
+          <div class="preview-canvas">
+            <div class="bed preview-on" id="previewBed">
+              <div class="pattern">
+                <svg viewBox="0 0 100 60" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round">
+                  <circle cx="78" cy="16" r="7" />
+                  <path d="M8 50 L30 22 L46 38 L62 20 L92 50" />
+                  <path d="M8 50 H92" />
+                </svg>
+              </div>
+              <div class="head" style="display:block"></div>
+            </div>
+            <div class="bed-caption">工作区域 300 × 200 mm · 小圆点表示激光头将如何移动</div>
           </div>
-          <div class="head" style="display:block"></div>
-        </div>
-        <div class="preview-panel">
-          <p>雕刻预览</p>
-          <p>范围 <b>50 × 30 mm</b></p>
-          <p>预计 <b>1 分 32 秒</b></p>
-          <p>材料 <b>3mm 木板</b></p>
-          <p>效果 <b>标准</b></p>
-          <p>方式 <b>空载测试</b></p>
-        </div>
-        <div class="preview-actions">
-          <button class="btn" type="button" data-go="workspace">返回修改</button>
-          <button class="btn btn-primary" type="button" data-go="safety">开始雕刻</button>
+          <aside class="preview-panel">
+            <p>雕刻预览</p>
+            <p>范围 <b>50 × 30 mm</b></p>
+            <p>预计 <b>1 分 32 秒</b></p>
+            <p>材料 <b>3mm 木板</b></p>
+            <p>效果 <b>标准</b></p>
+            <p>方式 <b>空载测试</b></p>
+            <div class="preview-actions">
+              <button class="btn" type="button" data-go="workspace">返回修改</button>
+              <button class="btn btn-primary" type="button" data-go="safety">开始雕刻</button>
+            </div>
+          </aside>
         </div>
       </div>
 
