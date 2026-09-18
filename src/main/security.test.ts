@@ -12,6 +12,14 @@ describe('Electron 安全配置', () => {
     expect(source).toContain('sandbox: true')
   })
 
+  it('沙箱 Preload 编译为 CJS，避免 sandbox 下 ESM 脚本不执行', () => {
+    const main = readFileSync(resolve(root, 'src/main/index.ts'), 'utf8')
+    const vite = readFileSync(resolve(root, 'electron.vite.config.ts'), 'utf8')
+    expect(main).toContain("../preload/index.js")
+    expect(vite).toMatch(/format:\s*'cjs'/)
+    expect(vite).toContain("entryFileNames: 'index.js'")
+  })
+
   it('Preload 用 contextBridge 暴露最小 API，不暴露 ipcRenderer', () => {
     const source = readFileSync(resolve(root, 'src/preload/index.ts'), 'utf8')
     expect(source).toContain('contextBridge.exposeInMainWorld')

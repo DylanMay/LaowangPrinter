@@ -5,15 +5,18 @@ const STATUS_COPY = {
   disconnected: COPY.deviceDisconnected,
   detecting: COPY.deviceDetecting,
   connecting: COPY.deviceDetecting,
-  connected: '雕刻机已连接',
-  error: '雕刻机连接已断开',
+  connected: COPY.deviceConnected,
+  error: COPY.deviceUnplugged,
 } as const
 
 export function DeviceStatus() {
   const deviceState = useAppStore((state) => state.deviceState)
+  const notice = useAppStore((state) => state.notice)
   const connected = deviceState === 'connected'
   const detecting = deviceState === 'detecting' || deviceState === 'connecting'
   const errored = deviceState === 'error'
+  const label =
+    errored && notice ? notice.split('。')[0] || STATUS_COPY.error : STATUS_COPY[deviceState]
 
   return (
     <div
@@ -28,7 +31,7 @@ export function DeviceStatus() {
           connected ? 'bg-[#2c9b6a]' : detecting ? 'animate-pulse bg-[#c4842a]' : errored ? 'bg-[#c4473a]' : 'bg-[#b0a89e]',
         ].join(' ')}
       />
-      {STATUS_COPY[deviceState]}
+      {label}
     </div>
   )
 }

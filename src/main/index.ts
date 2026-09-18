@@ -1,6 +1,13 @@
 import { registerIpcHandlers } from './ipc/handlers'
+import { DeviceService } from './device/DeviceService'
+import { env } from 'node:process'
+import { createSerialBackend } from './serial/createBackend'
+import { SerialManager } from './serial/SerialManager'
 import { app, BrowserWindow, Menu } from 'electron'
 import { join } from 'node:path'
+
+const serial = new SerialManager(createSerialBackend())
+const device = new DeviceService(serial)
 
 function createWindow(): void {
   const window = new BrowserWindow({
@@ -12,8 +19,9 @@ function createWindow(): void {
     backgroundColor: '#F3EEE6',
     show: false,
     autoHideMenuBar: true,
+    alwaysOnTop: env.LAOWANG_SERIAL === 'mock',
     webPreferences: {
-      preload: join(__dirname, '../preload/index.mjs'),
+      preload: join(__dirname, '../preload/index.js'),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
@@ -22,6 +30,7 @@ function createWindow(): void {
 
   window.once('ready-to-show', () => {
     window.show()
+    window.focus()
   })
 
   if (process.env['ELECTRON_RENDERER_URL']) {
@@ -31,9 +40,10 @@ function createWindow(): void {
   }
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   Menu.setApplicationMenu(null)
-  registerIpcHandlers()
+  registerIpcHandlers(device)
+  await device.startWatching()
   createWindow()
 
   app.on('activate', () => {
@@ -47,4 +57,9 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit()
   }
+})
+
+app.on('before-quit', () => {
+  device.stopWatching()
+  void device.disconnect()
 })
