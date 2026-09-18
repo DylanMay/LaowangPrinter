@@ -79,6 +79,25 @@ describe('GrblSender', () => {
     await stopped
     expect(sender2.getProgress().state).toBe('stopped')
     expect(sender2.getProgress().sentLines).toBeLessThan(SAMPLE.length)
+    expect(ctx.port.written.some(isResetChunk)).toBe(true)
+  })
+
+  it('最后一行发送中暂停，继续后会 completed', async () => {
+    const ctx = await setup()
+    ctx.backend.firmware.holdOk = true
+    const completed = once(ctx.sender, 'completed')
+    await ctx.sender.start({ lines: ['G21', 'M5'], estimatedTime: 1, dryRun: true })
+    await ctx.backend.firmware.releaseOk()
+    await tick()
+    expect(ctx.sender.getProgress().currentLine).toBe('M5')
+    await ctx.sender.pause()
+    await ctx.backend.firmware.releaseOk()
+    await tick()
+    expect(ctx.sender.getProgress().state).toBe('paused')
+    expect(ctx.sender.getProgress().sentLines).toBe(2)
+    await ctx.sender.resume()
+    const progress = await completed
+    expect(progress.state).toBe('completed')
   })
 
   it('USB 断开中止发送，Job=error', async () => {
@@ -102,6 +121,10 @@ describe('GrblSender', () => {
     const progress = await errored
     expect(progress.state).toBe('error')
     expect(progress.errorMessage).toContain('无法执行')
+    await tick()
+    await tick()
+    expect(ctx.port.written.some((chunk) => chunk === '!' || asText(chunk) === '!')).toBe(true)
+    expect(ctx.port.written.some(isResetChunk)).toBe(true)
   })
 
   it('polling ? 不阻塞行发送', async () => {
@@ -179,4 +202,9 @@ function gcodeWrites(written: Array<string | Buffer>): string[] {
 
 function asText(chunk: string | Buffer): string {
   return typeof chunk === 'string' ? chunk : chunk.toString('utf8')
+}
+
+function isResetChunk(chunk: string | Buffer): boolean {
+  if (typeof chunk === 'string') return chunk.length === 1 && chunk.charCodeAt(0) === 0x18
+  return chunk.length === 1 && chunk[0] === 0x18
 }
