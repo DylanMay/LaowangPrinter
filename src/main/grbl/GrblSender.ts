@@ -145,6 +145,7 @@ export class GrblSender {
       }
     } catch (error) {
       if (this.state === 'stopped' || this.state === 'error') return
+      if (this.absorbAbort(error)) return
       this.fail(error)
     }
   }
@@ -156,6 +157,18 @@ export class GrblSender {
     const progress = this.getProgress()
     this.emitter.emit('completed', progress)
     this.emitProgress()
+  }
+
+  private absorbAbort(error: unknown): boolean {
+    const message = error instanceof Error ? error.message : String(error)
+    if (message !== 'reset' && message !== 'stopped') return false
+    if (this.state !== 'running' && this.state !== 'paused') return true
+    this.state = 'stopped'
+    this.finishedAt = Date.now()
+    this.currentLine = ''
+    this.releasePause()
+    this.emitProgress()
+    return true
   }
 
   private shouldStop(): boolean {

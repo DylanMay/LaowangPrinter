@@ -280,12 +280,10 @@ export const useAppStore = create<AppStore>((set, get) => ({
   confirmAction: async () => {
     const kind = get().confirm
     set({ confirm: null })
-    if (kind === 'stop') {
-      const jobState = get().jobProgress.state
-      if (jobState === 'running' || jobState === 'paused') {
-        if (window.job) await window.job.stop()
-        return
-      }
+    const jobState = get().jobProgress.state
+    if ((kind === 'stop' || kind === 'reset') && (jobState === 'running' || jobState === 'paused')) {
+      if (window.job) await window.job.stop()
+      return
     }
     if (!window.machine) return
     if (kind === 'reset') {

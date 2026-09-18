@@ -100,6 +100,17 @@ describe('GrblSender', () => {
     expect(progress.state).toBe('completed')
   })
 
+  it('任务中复位记为停止，而不是报错', async () => {
+    const ctx = await setup()
+    ctx.backend.firmware.holdOk = true
+    const stopped = waitForState(ctx.sender, 'stopped')
+    await ctx.sender.start({ lines: SAMPLE, estimatedTime: 12, dryRun: false })
+    await ctx.controller.reset()
+    const progress = await stopped
+    expect(progress.state).toBe('stopped')
+    expect(progress.errorMessage).toBeUndefined()
+  })
+
   it('USB 断开中止发送，Job=error', async () => {
     const ctx = await setup()
     ctx.backend.firmware.holdOk = true
