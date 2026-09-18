@@ -1,5 +1,6 @@
 import type { DeviceState, DeviceStatus, MachineState } from '@shared/types/state'
 import type { JogFeed, JogStep } from '@shared/types/machine'
+import type { OpenSvgResult } from '@shared/types/svg'
 import { COPY } from '@shared/copy'
 import { create } from 'zustand'
 
@@ -18,9 +19,12 @@ type AppStore = {
   jogStep: JogStep
   jogFeed: JogFeed
   moveTested: boolean
+  imported: OpenSvgResult | null
   hydrate: () => Promise<void>
   requestConnect: () => Promise<void>
   submitSize: (widthMm: number, heightMm: number) => Promise<void>
+  openSvg: () => Promise<void>
+  importDropped: (file: File) => Promise<void>
   showNotice: (message: string) => void
   openPanel: () => void
   closePanel: () => void
@@ -65,6 +69,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   jogStep: 1,
   jogFeed: 500,
   moveTested: false,
+  imported: null,
   hydrate: async () => {
     if (!window.device) {
       set({ notice: '应用未正确启动，请重启软件。' })
@@ -113,6 +118,35 @@ export const useAppStore = create<AppStore>((set, get) => ({
       set({ notice: COPY.sizeInvalid })
     }
   },
+  openSvg: async () => {
+    if (!window.file) {
+      set({ notice: COPY.importFailed })
+      return
+    }
+    try {
+      const result = await window.file.openSvg()
+      if (!result) return
+      set({ imported: result, notice: COPY.importReady })
+    } catch (error) {
+      set({ notice: fileErrorMessage(error) })
+    }
+  },
+  importDropped: async (file) => {
+    if (!window.file) {
+      set({ notice: COPY.importFailed })
+      return
+    }
+    if (!file.name.toLowerCase().endsWith('.svg')) {
+      set({ notice: COPY.importInvalid })
+      return
+    }
+    try {
+      const result = await window.file.importDropped(file)
+      set({ imported: result, notice: COPY.importReady })
+    } catch (error) {
+      set({ notice: fileErrorMessage(error) })
+    }
+  },
   showNotice: (message) => set({ notice: message }),
   openPanel: () => set({ panelOpen: true, confirm: null }),
   closePanel: () => set({ panelOpen: false, confirm: null }),
@@ -154,3 +188,19 @@ export const useAppStore = create<AppStore>((set, get) => ({
     }
   },
 }))
+
+function fileErrorMessage(error: unknown): string {
+  const message =
+    error instanceof Error
+      ? error.message
+      : typeof error === 'object' && error && 'message' in error
+        ? String((error as { message: unknown }).message)
+        : ''
+  const known: string[] = [
+    COPY.importInvalid,
+    COPY.importEmpty,
+    COPY.importFailed,
+    COPY.importTooLarge,
+  ]
+  return known.includes(message) ? message : COPY.importFailed
+}

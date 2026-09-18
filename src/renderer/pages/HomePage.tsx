@@ -1,4 +1,5 @@
 import { COPY } from '@shared/copy'
+import { DropZone } from '../components/DropZone'
 import { SizeSetup } from '../components/SizeSetup'
 import { useAppStore } from '../store/appStore'
 
@@ -31,29 +32,7 @@ export function HomePage() {
       {connected && needsSizeSetup ? (
         <SizeSetup />
       ) : (
-        <div
-          className={[
-            'flex h-[280px] w-[520px] max-w-full flex-col items-center justify-center gap-3 rounded-3xl border-[1.5px] border-dashed bg-surface',
-            connected ? 'border-brand' : 'border-[#cfc4b3] opacity-60',
-          ].join(' ')}
-          onClick={() => {
-            if (connected) showNotice(COPY.importLater)
-          }}
-        >
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-paper text-brand">
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-              <path d="M12 3v12" />
-              <path d="M7 8l5-5 5 5" />
-              <rect x="4" y="15" width="16" height="6" rx="1.5" />
-            </svg>
-          </div>
-          <p className="text-lg font-semibold">
-            {connected ? COPY.dropTitleConnected : COPY.dropTitleDisconnected}
-          </p>
-          <span className="text-[13px] text-muted">
-            {connected ? COPY.dropHintConnected : COPY.dropHintDisconnected}
-          </span>
-        </div>
+        <DropZone />
       )}
 
       {connected ? (

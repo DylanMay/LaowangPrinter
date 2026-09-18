@@ -24,4 +24,11 @@ describe('普通用户文案', () => {
     expect(COPY.findingOrigin).toBe('正在寻找机器原点…')
     expect(COPY.machineLead).toContain('不会开激光')
   })
+
+  it('导入图案使用选择文件，不出现解析术语', () => {
+    expect(COPY.selectFile).toBe('选择文件')
+    expect(COPY.dropHintConnected).toContain('选择 SVG 文件')
+    expect(COPY.importEmpty).toContain('可雕刻的线条')
+    expect(COPY.importLines).toBe('条线条')
+  })
 })

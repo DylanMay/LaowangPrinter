@@ -1,7 +1,8 @@
-import { APP_NAME } from '@shared/copy'
+import { APP_NAME, COPY } from '@shared/copy'
 import type { DeviceStatus } from '@shared/types/state'
-import { app, BrowserWindow, ipcMain } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain } from 'electron'
 import type { DeviceService } from '../device/DeviceService'
+import { FileService } from '../file/FileService'
 
 function broadcast(channel: string, payload: DeviceStatus): void {
   for (const window of BrowserWindow.getAllWindows()) {
@@ -9,7 +10,7 @@ function broadcast(channel: string, payload: DeviceStatus): void {
   }
 }
 
-export function registerIpcHandlers(device: DeviceService): void {
+export function registerIpcHandlers(device: DeviceService, files = createFileService()): void {
   ipcMain.handle('app:getVersion', () => app.getVersion())
   ipcMain.handle('app:getName', () => APP_NAME)
   ipcMain.handle('device:list', () => device.list())
@@ -29,11 +30,31 @@ export function registerIpcHandlers(device: DeviceService): void {
   ipcMain.handle('machine:stop', () => device.halt())
   ipcMain.handle('machine:reset', () => device.reset())
   ipcMain.handle('machine:testMove', () => device.testMove())
+  ipcMain.handle('file:openSvg', () => files.openSvg())
+  ipcMain.handle('file:importSvg', (_event, filePath: string) => files.importSvg(filePath))
 
   device.onStatus((status) => {
     broadcast('device:status', status)
     if (status.state === 'connected') broadcast('device:connected', status)
     if (status.state === 'disconnected') broadcast('device:disconnected', status)
     if (status.state === 'error') broadcast('device:error', status)
+  })
+}
+
+function createFileService(): FileService {
+  return new FileService({
+    openDialog: async () => {
+      const window = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0]
+      const options = {
+        title: COPY.selectFile,
+        filters: [{ name: 'SVG', extensions: ['svg'] }],
+        properties: ['openFile' as const],
+      }
+      const result = window
+        ? await dialog.showOpenDialog(window, options)
+        : await dialog.showOpenDialog(options)
+      if (result.canceled || !result.filePaths[0]) return null
+      return result.filePaths[0]
+    },
   })
 }

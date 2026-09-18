@@ -1,6 +1,6 @@
 import { APP_NAME } from '@shared/copy'
 import type { DeviceEventName } from '@shared/types/preload'
-import { contextBridge, ipcRenderer } from 'electron'
+import { contextBridge, ipcRenderer, webUtils } from 'electron'
 
 const DEVICE_EVENTS: DeviceEventName[] = [
   'device:connected',
@@ -43,4 +43,12 @@ contextBridge.exposeInMainWorld('machine', {
   stop: () => ipcRenderer.invoke('machine:stop'),
   reset: () => ipcRenderer.invoke('machine:reset'),
   testMove: () => ipcRenderer.invoke('machine:testMove'),
+})
+
+contextBridge.exposeInMainWorld('file', {
+  openSvg: () => ipcRenderer.invoke('file:openSvg'),
+  importDropped: (file: File) => {
+    const filePath = webUtils.getPathForFile(file)
+    return ipcRenderer.invoke('file:importSvg', filePath)
+  },
 })

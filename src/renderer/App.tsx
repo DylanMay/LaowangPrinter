@@ -15,6 +15,18 @@ export function App() {
     void hydrate()
   }, [hydrate])
 
+  useEffect(() => {
+    const prevent = (event: DragEvent) => {
+      event.preventDefault()
+    }
+    window.addEventListener('dragover', prevent)
+    window.addEventListener('drop', prevent)
+    return () => {
+      window.removeEventListener('dragover', prevent)
+      window.removeEventListener('drop', prevent)
+    }
+  }, [])
+
   return (
     <div className="relative flex h-full flex-col bg-paper text-ink">
       <header className="flex h-14 shrink-0 items-center gap-3 border-b border-line bg-surface px-4">
