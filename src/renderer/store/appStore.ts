@@ -1,12 +1,30 @@
 import type { DeviceState, DeviceStatus, MachineState } from '@shared/types/state'
 import type { JogFeed, JogStep } from '@shared/types/machine'
 import type { OpenSvgResult } from '@shared/types/svg'
+import type { Placement, WorkArea } from '@shared/types/workspace'
+import {
+  autoShrink,
+  canStart,
+  centerPlacement,
+  DEFAULT_WORK_AREA,
+  fitPlacement,
+  movePlacement,
+  placeImported,
+  resizeFromHeight,
+  resizeFromWidth,
+  scalePlacement,
+} from '@shared/geometry/CoordinateTransformer'
 import { COPY } from '@shared/copy'
 import { create } from 'zustand'
 
 type ConfirmKind = 'reset' | 'stop' | null
+type AppPage = 'home' | 'workspace' | 'job'
+type MaterialId = 'wood' | 'bamboo' | 'cardboard' | 'leather' | 'acrylic'
+type EffectId = 'light' | 'standard' | 'deep'
+type WorkMode = 'dry' | 'engrave'
 
 type AppStore = {
+  page: AppPage
   deviceState: DeviceState
   deviceName: string | null
   notice: string | null
@@ -14,12 +32,19 @@ type AppStore = {
   needsSizeSetup: boolean
   machineState: MachineState
   activity: DeviceStatus['activity']
+  workArea: WorkArea | null
   panelOpen: boolean
   confirm: ConfirmKind
   jogStep: JogStep
   jogFeed: JogFeed
   moveTested: boolean
   imported: OpenSvgResult | null
+  placement: Placement | null
+  lockRatio: boolean
+  material: MaterialId
+  thicknessMm: number
+  effect: EffectId
+  workMode: WorkMode
   hydrate: () => Promise<void>
   requestConnect: () => Promise<void>
   submitSize: (widthMm: number, heightMm: number) => Promise<void>
@@ -37,6 +62,21 @@ type AppStore = {
   askStop: () => void
   cancelConfirm: () => void
   confirmAction: () => Promise<void>
+  goHome: () => void
+  goWorkspace: () => void
+  goJob: () => void
+  setLockRatio: (lockRatio: boolean) => void
+  setWidth: (widthMm: number) => void
+  setHeight: (heightMm: number) => void
+  moveBy: (dxMm: number, dyMm: number) => void
+  scaleBy: (factor: number) => void
+  centerPattern: () => void
+  fitPattern: () => void
+  autoShrinkPattern: () => void
+  setMaterial: (material: MaterialId) => void
+  setThickness: (thicknessMm: number) => void
+  setEffect: (effect: EffectId) => void
+  setWorkMode: (workMode: WorkMode) => void
 }
 
 function mergeStatus(
@@ -50,13 +90,31 @@ function mergeStatus(
     needsSizeSetup: Boolean(status.needsSizeSetup),
     machineState: status.machineState ?? 'unknown',
     activity: status.activity,
+    workArea: status.workArea ?? null,
     notice: status.errorMessage ?? (status.state === 'connected' ? getNotice() : null),
+  })
+}
+
+function applyImport(
+  set: (partial: Partial<AppStore>) => void,
+  get: () => AppStore,
+  result: OpenSvgResult,
+): void {
+  const workArea = get().workArea ?? DEFAULT_WORK_AREA
+  const placed = placeImported(result.document, workArea)
+  set({
+    imported: result,
+    placement: placed.placement,
+    lockRatio: true,
+    page: 'workspace',
+    notice: placed.shrunk ? COPY.shrunkOk : COPY.importReady,
   })
 }
 
 let listening = false
 
 export const useAppStore = create<AppStore>((set, get) => ({
+  page: 'home',
   deviceState: 'disconnected',
   deviceName: null,
   notice: null,
@@ -64,12 +122,19 @@ export const useAppStore = create<AppStore>((set, get) => ({
   needsSizeSetup: false,
   machineState: 'unknown',
   activity: undefined,
+  workArea: null,
   panelOpen: false,
   confirm: null,
   jogStep: 1,
   jogFeed: 500,
   moveTested: false,
   imported: null,
+  placement: null,
+  lockRatio: true,
+  material: 'wood',
+  thicknessMm: 3,
+  effect: 'standard',
+  workMode: 'dry',
   hydrate: async () => {
     if (!window.device) {
       set({ notice: '应用未正确启动，请重启软件。' })
@@ -126,7 +191,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
     try {
       const result = await window.file.openSvg()
       if (!result) return
-      set({ imported: result, notice: COPY.importReady })
+      applyImport(set, get, result)
     } catch (error) {
       set({ notice: fileErrorMessage(error) })
     }
@@ -142,7 +207,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
     }
     try {
       const result = await window.file.importDropped(file)
-      set({ imported: result, notice: COPY.importReady })
+      applyImport(set, get, result)
     } catch (error) {
       set({ notice: fileErrorMessage(error) })
     }
@@ -187,6 +252,65 @@ export const useAppStore = create<AppStore>((set, get) => ({
       mergeStatus(set, () => get().notice, status)
     }
   },
+  goHome: () => set({ page: 'home' }),
+  goWorkspace: () => {
+    if (get().imported) set({ page: 'workspace' })
+  },
+  goJob: () => {
+    const { placement, workArea, deviceState } = get()
+    if (!placement || !workArea || deviceState !== 'connected') return
+    if (!canStart(placement, workArea)) return
+    set({ page: 'job', notice: null })
+  },
+  setLockRatio: (lockRatio) => set({ lockRatio }),
+  setWidth: (widthMm) => {
+    const { placement, lockRatio } = get()
+    if (!placement) return
+    set({ placement: resizeFromWidth(placement, widthMm, lockRatio), notice: null })
+  },
+  setHeight: (heightMm) => {
+    const { placement, lockRatio } = get()
+    if (!placement) return
+    set({ placement: resizeFromHeight(placement, heightMm, lockRatio), notice: null })
+  },
+  moveBy: (dxMm, dyMm) => {
+    const { placement } = get()
+    if (!placement) return
+    set({ placement: movePlacement(placement, dxMm, dyMm) })
+  },
+  scaleBy: (factor) => {
+    const { placement } = get()
+    if (!placement) return
+    set({ placement: scalePlacement(placement, factor) })
+  },
+  centerPattern: () => {
+    const { placement, workArea } = get()
+    if (!placement || !workArea) return
+    set({
+      placement: centerPlacement(placement.widthMm, placement.heightMm, workArea),
+      notice: COPY.centeredOk,
+    })
+  },
+  fitPattern: () => {
+    const { placement, workArea } = get()
+    if (!placement || !workArea) return
+    set({
+      placement: fitPlacement(placement.widthMm, placement.heightMm, workArea),
+      notice: COPY.fittedOk,
+    })
+  },
+  autoShrinkPattern: () => {
+    const { placement, workArea } = get()
+    if (!placement || !workArea) return
+    set({
+      placement: autoShrink(placement.widthMm, placement.heightMm, workArea),
+      notice: COPY.shrunkOk,
+    })
+  },
+  setMaterial: (material) => set({ material }),
+  setThickness: (thicknessMm) => set({ thicknessMm }),
+  setEffect: (effect) => set({ effect }),
+  setWorkMode: (workMode) => set({ workMode }),
 }))
 
 function fileErrorMessage(error: unknown): string {

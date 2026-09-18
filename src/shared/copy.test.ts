@@ -31,4 +31,13 @@ describe('普通用户文案', () => {
     expect(COPY.importEmpty).toContain('可雕刻的线条')
     expect(COPY.importLines).toBe('条线条')
   })
+
+  it('工作区越界使用中文，不出现坐标原点', () => {
+    expect(COPY.outOfBounds).toBe('图案超出雕刻区域')
+    expect(COPY.patternTooLarge).toBe('图案太大')
+    expect(COPY.autoShrink).toBe('自动缩小')
+    expect(COPY.centerPattern).toBe('居中')
+    expect(COPY.workAreaCaption).toBe('工作区域')
+    expect(JSON.stringify(COPY)).not.toMatch(/X0|Y0|Z0/)
+  })
 })

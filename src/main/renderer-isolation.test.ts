@@ -29,6 +29,21 @@ describe('Renderer 隔离', () => {
       expect(source, file).not.toMatch(/from ['"]@shared\/svg\/pathData['"]/)
       expect(source, file).not.toMatch(/from ['"]@shared\/svg\/SvgUnitConverter['"]/)
       expect(source, file).not.toMatch(/require\(/)
+      expect(source, file).not.toMatch(/workspaceToMachine/)
+      expect(source, file).not.toMatch(/svgToMachine/)
+    }
+  })
+
+  it('Y 翻转只存在于 CoordinateTransformer', () => {
+    const transformer = readFileSync(resolve(import.meta.dirname, '../shared/geometry/CoordinateTransformer.ts'), 'utf8')
+    expect(transformer).toMatch(/heightMm - /)
+    const files = walk(resolve(import.meta.dirname, '../renderer')).filter(
+      (file) => !file.endsWith('.test.ts'),
+    )
+    for (const file of files) {
+      const source = readFileSync(file, 'utf8')
+      expect(source, file).not.toMatch(/workspaceToMachine/)
+      expect(source, file).not.toMatch(/svgToMachine/)
     }
   })
 })
