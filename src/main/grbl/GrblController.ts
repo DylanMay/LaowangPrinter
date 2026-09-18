@@ -86,9 +86,9 @@ export class GrblController {
     await this.serial.write(data)
   }
 
-  sendLine(line: string, timeoutMs = LINE_TIMEOUT_MS): Promise<void> {
+  sendLine(line: string, timeoutMs = LINE_TIMEOUT_MS, allowLaser = false): Promise<void> {
     try {
-      assertNoLaser(line)
+      if (!allowLaser) assertNoLaser(line)
     } catch (error) {
       return Promise.reject(error)
     }
@@ -145,6 +145,10 @@ export class GrblController {
     }
     this.emitter.emit('config', this.config)
     return this.config
+  }
+
+  abortPending(error: Error = new Error('stopped')): void {
+    this.rejectOk(error)
   }
 
   stop(): void {

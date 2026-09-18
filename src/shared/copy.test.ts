@@ -47,4 +47,13 @@ describe('普通用户文案', () => {
     expect(COPY.previewHeadHint).toContain('小圆点')
     expect(COPY.viewPathCommands).toBe('查看路径指令')
   })
+
+  it('任务页使用进度和剩余时间，不出现内部指令术语', () => {
+    expect(COPY.engraving).toBe('正在雕刻…')
+    expect(COPY.dryRunning).toBe('空载测试中…')
+    expect(COPY.remainingLabel).toBe('预计剩余')
+    expect(COPY.jobCompleted).toBe('雕刻完成')
+    expect(COPY.pause).toBe('暂停')
+    expect(COPY.lowPowerNeedsConfirm).toContain('单独确认')
+  })
 })
