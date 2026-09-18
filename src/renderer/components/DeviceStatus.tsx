@@ -1,22 +1,15 @@
 import { COPY } from '@shared/copy'
 import { useAppStore } from '../store/appStore'
 
-const STATUS_COPY = {
-  disconnected: COPY.deviceDisconnected,
-  detecting: COPY.deviceDetecting,
-  connecting: COPY.deviceDetecting,
-  connected: COPY.deviceConnected,
-  error: COPY.deviceUnplugged,
-} as const
-
 export function DeviceStatus() {
   const deviceState = useAppStore((state) => state.deviceState)
   const notice = useAppStore((state) => state.notice)
+  const machineState = useAppStore((state) => state.machineState)
+  const activity = useAppStore((state) => state.activity)
   const connected = deviceState === 'connected'
   const detecting = deviceState === 'detecting' || deviceState === 'connecting'
   const errored = deviceState === 'error'
-  const label =
-    errored && notice ? notice.split('。')[0] || STATUS_COPY.error : STATUS_COPY[deviceState]
+  const label = statusLabel(deviceState, machineState, activity, notice)
 
   return (
     <div
@@ -34,4 +27,21 @@ export function DeviceStatus() {
       {label}
     </div>
   )
+}
+
+function statusLabel(
+  deviceState: 'disconnected' | 'detecting' | 'connecting' | 'connected' | 'error',
+  machineState: string,
+  activity: string | undefined,
+  notice: string | null,
+): string {
+  if (activity === 'homing' || machineState === 'homing') return COPY.findingOrigin
+  if (activity === 'resetting') return COPY.resetting
+  if (activity === 'testing') return COPY.testingMove
+  if (machineState === 'paused') return COPY.paused
+  if (deviceState === 'error' && notice) return notice.split('。')[0] || COPY.deviceUnplugged
+  if (deviceState === 'disconnected') return COPY.deviceDisconnected
+  if (deviceState === 'detecting' || deviceState === 'connecting') return COPY.deviceDetecting
+  if (deviceState === 'connected') return COPY.deviceConnected
+  return COPY.deviceUnplugged
 }

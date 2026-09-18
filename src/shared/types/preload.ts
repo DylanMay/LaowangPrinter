@@ -17,6 +17,13 @@ export type DeviceApi = {
 export type MachineApi = {
   getConfig: () => Promise<MachineConfig | null>
   setSize: (widthMm: number, heightMm: number) => Promise<DeviceStatus>
+  home: () => Promise<DeviceStatus>
+  jog: (axis: 'X' | 'Y', distanceMm: number, feed: 100 | 500 | 1000 | 3000) => Promise<DeviceStatus>
+  pause: () => Promise<DeviceStatus>
+  resume: () => Promise<DeviceStatus>
+  stop: () => Promise<DeviceStatus>
+  reset: () => Promise<DeviceStatus>
+  testMove: () => Promise<DeviceStatus>
 }
 
 export type DeviceEventName =

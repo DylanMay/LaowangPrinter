@@ -10,6 +10,9 @@ export function HomePage() {
   const showNotice = useAppStore((state) => state.showNotice)
   const scanned = useAppStore((state) => state.scanned)
   const needsSizeSetup = useAppStore((state) => state.needsSizeSetup)
+  const moveTested = useAppStore((state) => state.moveTested)
+  const testMove = useAppStore((state) => state.testMove)
+  const activity = useAppStore((state) => state.activity)
   const connected = deviceState === 'connected'
   const busy = deviceState === 'detecting' || deviceState === 'connecting'
   const connectLabel = busy
@@ -54,7 +57,22 @@ export function HomePage() {
       )}
 
       {connected ? (
-        <p className="text-sm font-semibold text-brand">{deviceName ?? COPY.myMachine}</p>
+        <div className="flex flex-col items-center gap-3">
+          <p className="text-sm font-semibold text-brand">{deviceName ?? COPY.myMachine}</p>
+          {!needsSizeSetup && !moveTested ? (
+            <div className="flex flex-col items-center gap-2">
+              <p className="text-[13px] text-muted">{COPY.firstTestHint}</p>
+              <button
+                type="button"
+                disabled={Boolean(activity)}
+                onClick={() => void testMove()}
+                className="h-10 rounded-xl border border-line bg-surface px-4 text-sm font-semibold disabled:opacity-40"
+              >
+                {COPY.startTest}
+              </button>
+            </div>
+          ) : null}
+        </div>
       ) : (
         <div className="flex gap-2.5">
           <button

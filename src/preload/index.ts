@@ -35,4 +35,12 @@ contextBridge.exposeInMainWorld('machine', {
   getConfig: () => ipcRenderer.invoke('machine:getConfig'),
   setSize: (widthMm: number, heightMm: number) =>
     ipcRenderer.invoke('machine:setSize', widthMm, heightMm),
+  home: () => ipcRenderer.invoke('machine:home'),
+  jog: (axis: 'X' | 'Y', distanceMm: number, feed: 100 | 500 | 1000 | 3000) =>
+    ipcRenderer.invoke('machine:jog', axis, distanceMm, feed),
+  pause: () => ipcRenderer.invoke('machine:pause'),
+  resume: () => ipcRenderer.invoke('machine:resume'),
+  stop: () => ipcRenderer.invoke('machine:stop'),
+  reset: () => ipcRenderer.invoke('machine:reset'),
+  testMove: () => ipcRenderer.invoke('machine:testMove'),
 })

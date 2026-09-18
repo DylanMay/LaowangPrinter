@@ -72,9 +72,15 @@ export class NodeSerialBackend implements SerialBackend {
   }
 
   async open(path: string, baudRate: BaudRate): Promise<SerialPortLike> {
-    const wrapper = new SerialPortWrapper(new SerialPort({ path, baudRate, autoOpen: false }))
-    await withTimeout(wrapper.open(), 1500)
-    return wrapper
+    const native = new SerialPort({ path, baudRate, autoOpen: false })
+    const wrapper = new SerialPortWrapper(native)
+    try {
+      await withTimeout(wrapper.open(), 1500)
+      return wrapper
+    } catch (error) {
+      await closeQuietly(native)
+      throw error
+    }
   }
 }
 
@@ -91,6 +97,22 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
         reject(error)
       },
     )
+  })
+}
+
+function closeQuietly(port: SerialPort): Promise<void> {
+  return new Promise((resolve) => {
+    const finish = () => resolve()
+    try {
+      if (typeof port.close === 'function') {
+        port.close(() => finish())
+        return
+      }
+    } catch {
+      finish()
+      return
+    }
+    finish()
   })
 }
 

@@ -19,4 +19,9 @@ describe('普通用户文案', () => {
     expect(COPY.sizeSetupTitle).toBe('设置工作区域')
     expect(COPY.sizeUnit).toBe('毫米')
   })
+
+  it('机器控制使用回到原点，不出现 Homing', () => {
+    expect(COPY.findingOrigin).toBe('正在寻找机器原点…')
+    expect(COPY.machineLead).toContain('不会开激光')
+  })
 })

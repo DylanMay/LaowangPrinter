@@ -4,6 +4,7 @@ export type AppErrorCode =
   | 'NO_DEVICE'
   | 'GRBL_ERROR'
   | 'GRBL_ALARM'
+  | 'LASER_BLOCKED'
   | 'UNKNOWN'
 
 export type AppError = {
@@ -34,6 +35,10 @@ export const USER_ERRORS: Record<AppErrorCode, { userMessage: string; hint?: str
     userMessage: '雕刻机处于异常状态。',
     hint: '请检查机器，然后重新归零。',
   },
+  LASER_BLOCKED: {
+    userMessage: '不会开启激光。',
+    hint: '点动只会移动机器。',
+  },
   UNKNOWN: {
     userMessage: '无法连接雕刻机。',
     hint: '请检查 USB 连接后再试。',
@@ -60,7 +65,7 @@ function detailOf(error: unknown): string {
 
 function readCode(error: unknown, technicalDetail: string): AppErrorCode {
   const code = typeof error === 'object' && error && 'code' in error ? String(error.code) : ''
-  if (code === 'PORT_BUSY' || code === 'DEVICE_DISCONNECTED' || code === 'GRBL_ERROR' || code === 'GRBL_ALARM') {
+  if (code === 'PORT_BUSY' || code === 'DEVICE_DISCONNECTED' || code === 'GRBL_ERROR' || code === 'GRBL_ALARM' || code === 'LASER_BLOCKED') {
     return code
   }
   if (code === 'NO_DEVICE' || code === 'NOT_GRBL') {

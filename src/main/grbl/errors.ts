@@ -24,3 +24,12 @@ export class NotGrblError extends Error {
     this.name = 'NotGrblError'
   }
 }
+
+export class LaserBlockedError extends Error {
+  readonly code = 'LASER_BLOCKED' as const
+
+  constructor() {
+    super('Laser command blocked')
+    this.name = 'LaserBlockedError'
+  }
+}

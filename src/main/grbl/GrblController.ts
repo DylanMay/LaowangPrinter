@@ -1,13 +1,14 @@
 import { EventEmitter } from 'node:events'
-import type { MachineConfig } from '@shared/types/machine'
+import type { JogParams, MachineConfig } from '@shared/types/machine'
 import type { MachineState } from '@shared/types/state'
 import { SerialManager } from '../serial/SerialManager'
-import { GrblAlarmError, GrblCommandError, NotGrblError } from './errors'
+import { GrblAlarmError, GrblCommandError, LaserBlockedError, NotGrblError } from './errors'
 import { feedGrblBuffer, parseGrblLine } from './GrblParser'
-import { REALTIME_RESET, REALTIME_STATUS, STATUS_POLL_MS } from './types'
+import { REALTIME_HOLD, REALTIME_RESET, REALTIME_RESUME, REALTIME_STATUS, STATUS_POLL_MS } from './types'
 import type { GrblStatusReport } from './types'
 
 const LINE_TIMEOUT_MS = 1500
+const MOTION_TIMEOUT_MS = 60_000
 const VERSION_WAIT_MS = 800
 
 type GrblEvents = {
@@ -85,10 +86,48 @@ export class GrblController {
     await this.serial.write(data)
   }
 
-  sendLine(line: string): Promise<void> {
-    const run = this.chain.then(() => this.sendLineNow(line))
+  sendLine(line: string, timeoutMs = LINE_TIMEOUT_MS): Promise<void> {
+    try {
+      assertNoLaser(line)
+    } catch (error) {
+      return Promise.reject(error)
+    }
+    const run = this.chain.then(() => this.sendLineNow(line, timeoutMs))
     this.chain = run.catch(() => undefined)
     return run
+  }
+
+  async home(): Promise<void> {
+    await this.sendLine('$H', MOTION_TIMEOUT_MS)
+  }
+
+  async jog(params: JogParams): Promise<void> {
+    const command = buildJogCommand(params)
+    await this.sendLine(command, MOTION_TIMEOUT_MS)
+  }
+
+  async pause(): Promise<void> {
+    await this.writeRealtime(REALTIME_HOLD)
+  }
+
+  async resume(): Promise<void> {
+    await this.writeRealtime(REALTIME_RESUME)
+  }
+
+  async halt(): Promise<void> {
+    await this.writeRealtime(REALTIME_HOLD)
+  }
+
+  async reset(): Promise<void> {
+    this.version = null
+    this.rejectOk(new Error('reset'))
+    await this.writeRealtime(Buffer.from([REALTIME_RESET]))
+    const welcomed = await this.waitFor(() => this.version !== null, VERSION_WAIT_MS)
+    if (!welcomed) throw new NotGrblError()
+  }
+
+  async testMove(): Promise<void> {
+    await this.jog({ axis: 'X', distanceMm: 1, feed: 100 })
   }
 
   setWorkspaceSize(widthMm: number, heightMm: number): MachineConfig {
@@ -114,20 +153,20 @@ export class GrblController {
     this.resetSession()
   }
 
-  private async sendLineNow(line: string): Promise<void> {
+  private async sendLineNow(line: string, timeoutMs = LINE_TIMEOUT_MS): Promise<void> {
     const payload = line.endsWith('\n') ? line : `${line}\n`
-    const waiting = this.waitForOk()
+    const waiting = this.waitForOk(timeoutMs)
     await this.serial.write(payload)
     await waiting
   }
 
-  private waitForOk(): Promise<void> {
+  private waitForOk(timeoutMs = LINE_TIMEOUT_MS): Promise<void> {
     return new Promise((resolve, reject) => {
       this.okWaiter = { resolve, reject }
       this.okTimer = setTimeout(() => {
         this.okWaiter = null
         reject(new Error('GRBL timeout'))
-      }, LINE_TIMEOUT_MS)
+      }, timeoutMs)
     })
   }
 
@@ -268,6 +307,26 @@ function positive(value: number | undefined): number | null {
 
 function isValidSize(value: number): boolean {
   return Number.isFinite(value) && value > 0 && value <= 2000
+}
+
+function assertNoLaser(line: string): void {
+  if (/\bM3\b|\bM4\b/i.test(line)) {
+    throw new LaserBlockedError()
+  }
+}
+
+function buildJogCommand(params: JogParams): string {
+  const axis = params.axis === 'Y' ? 'Y' : 'X'
+  const distance = params.distanceMm
+  const feed = params.feed
+  if (!Number.isFinite(distance) || distance === 0 || Math.abs(distance) > 100) {
+    throw new Error('Invalid jog')
+  }
+  if (feed !== 100 && feed !== 500 && feed !== 1000 && feed !== 3000) {
+    throw new Error('Invalid jog')
+  }
+  const amount = Number.isInteger(distance) ? String(distance) : distance.toFixed(3)
+  return `$J=G91 G21 ${axis}${amount} F${feed}`
 }
 
 export { STATUS_POLL_MS }
