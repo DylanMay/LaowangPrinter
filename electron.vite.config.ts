@@ -15,6 +15,15 @@ export default defineConfig({
   preload: {
     plugins: [externalizeDepsPlugin()],
     resolve: { alias: sharedAlias },
+    // Sandboxed preload must be CJS. Electron does not execute ESM preload when sandbox is true.
+    build: {
+      rollupOptions: {
+        output: {
+          format: 'cjs',
+          entryFileNames: 'index.js',
+        },
+      },
+    },
   },
   renderer: {
     root: resolve('src/renderer'),

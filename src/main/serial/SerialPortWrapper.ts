@@ -60,7 +60,7 @@ export class SerialPortWrapper implements SerialPortLike {
 export class NodeSerialBackend implements SerialBackend {
   async list(): Promise<SerialPortInfo[]> {
     try {
-      const ports = await SerialPort.list()
+      const ports = await withTimeout(SerialPort.list(), 1500)
       return ports.map((port) => ({
         path: port.path,
         manufacturer: port.manufacturer,
@@ -73,9 +73,25 @@ export class NodeSerialBackend implements SerialBackend {
 
   async open(path: string, baudRate: BaudRate): Promise<SerialPortLike> {
     const wrapper = new SerialPortWrapper(new SerialPort({ path, baudRate, autoOpen: false }))
-    await wrapper.open()
+    await withTimeout(wrapper.open(), 1500)
     return wrapper
   }
+}
+
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('serial timeout')), ms)
+    promise.then(
+      (value) => {
+        clearTimeout(timer)
+        resolve(value)
+      },
+      (error: unknown) => {
+        clearTimeout(timer)
+        reject(error)
+      },
+    )
+  })
 }
 
 function normalizeNativeError(error: Error): Error {

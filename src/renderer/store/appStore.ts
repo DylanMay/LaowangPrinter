@@ -30,17 +30,36 @@ export const useAppStore = create<AppStore>((set) => ({
   notice: null,
   scanned: false,
   hydrate: async () => {
+    if (!window.device) {
+      set({ notice: '应用未正确启动，请重启软件。' })
+      return
+    }
     if (!listening) {
       listening = true
       window.device.on('device:status', (status) => applyStatus(set, status))
     }
-    const status = await window.device.getStatus()
-    applyStatus(set, status)
+    try {
+      const status = await window.device.getStatus()
+      applyStatus(set, status)
+    } catch {
+      set({ notice: '应用未正确启动，请重启软件。' })
+    }
   },
   requestConnect: async () => {
+    if (!window.device) {
+      set({ deviceState: 'error', notice: '应用未正确启动，请重启软件。' })
+      return
+    }
     set({ deviceState: 'detecting', notice: null, scanned: true })
-    const status = await window.device.connect()
-    applyStatus(set, status)
+    try {
+      const status = await window.device.connect()
+      applyStatus(set, status)
+    } catch {
+      set({
+        deviceState: 'error',
+        notice: '无法连接雕刻机。请检查 USB 连接后再试。',
+      })
+    }
   },
   showNotice: (message) => set({ notice: message }),
 }))

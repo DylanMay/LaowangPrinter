@@ -76,9 +76,9 @@ export class DeviceService {
     return this.getStatus()
   }
 
-  startWatching(): void {
+  async startWatching(): Promise<void> {
     if (this.watchTimer) return
-    void this.connectIfIdle()
+    await this.connectIfIdle()
     this.watchTimer = setInterval(() => {
       void this.connectIfIdle()
     }, WATCH_MS)

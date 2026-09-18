@@ -34,6 +34,16 @@ describe('DeviceService', () => {
     expect(status.errorMessage).not.toMatch(/Access denied|EACCES|SerialPortError/i)
   })
 
+  it('启动监听后自动连接已插入的雕刻机', async () => {
+    const backend = new MockSerialBackend()
+    backend.ports = [{ path: 'mock://engraver' }]
+    const service = new DeviceService(new SerialManager(backend))
+    await service.startWatching()
+    expect(service.getStatus().state).toBe('connected')
+    expect(service.getStatus().displayName).toBe('我的雕刻机')
+    service.stopWatching()
+  })
+
   it('USB 拔出后进入断开错误', async () => {
     const backend = new MockSerialBackend()
     backend.ports = [{ path: 'mock://engraver' }]
