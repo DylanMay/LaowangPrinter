@@ -5,6 +5,8 @@ describe('普通用户文案', () => {
   it('首页使用中文产品语言', () => {
     expect(COPY.homeTitle).toBe('激光雕刻')
     expect(COPY.deviceDisconnected).toBe('未检测到雕刻机')
+    expect(COPY.deviceConnected).toBe('雕刻机已连接')
+    expect(COPY.myMachine).toBe('我的雕刻机')
     expect(COPY.dropTitleDisconnected).toBe('请先连接雕刻机')
   })
 

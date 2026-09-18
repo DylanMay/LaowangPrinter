@@ -26,6 +26,13 @@ export type JobState =
 
 export type DeviceStatus = {
   state: DeviceState
+  displayName?: string
+  errorMessage?: string
+}
+
+export type PublicDevice = {
+  id: string
+  name: string
 }
 
 export type AppInfo = {

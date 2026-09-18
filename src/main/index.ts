@@ -1,6 +1,12 @@
 import { registerIpcHandlers } from './ipc/handlers'
+import { DeviceService } from './device/DeviceService'
+import { createSerialBackend } from './serial/createBackend'
+import { SerialManager } from './serial/SerialManager'
 import { app, BrowserWindow, Menu } from 'electron'
 import { join } from 'node:path'
+
+const serial = new SerialManager(createSerialBackend())
+const device = new DeviceService(serial)
 
 function createWindow(): void {
   const window = new BrowserWindow({
@@ -33,7 +39,8 @@ function createWindow(): void {
 
 app.whenReady().then(() => {
   Menu.setApplicationMenu(null)
-  registerIpcHandlers()
+  registerIpcHandlers(device)
+  device.startWatching()
   createWindow()
 
   app.on('activate', () => {
@@ -47,4 +54,9 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit()
   }
+})
+
+app.on('before-quit', () => {
+  device.stopWatching()
+  void device.disconnect()
 })
