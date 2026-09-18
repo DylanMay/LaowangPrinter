@@ -1,5 +1,6 @@
 import type { DeviceState, DeviceStatus, MachineState } from '@shared/types/state'
 import type { JogFeed, JogStep } from '@shared/types/machine'
+import type { EffectLevel, MaterialId } from '@shared/materials/MaterialPreset'
 import type { OpenSvgResult } from '@shared/types/svg'
 import type { Placement, WorkArea } from '@shared/types/workspace'
 import {
@@ -18,9 +19,7 @@ import { COPY } from '@shared/copy'
 import { create } from 'zustand'
 
 type ConfirmKind = 'reset' | 'stop' | null
-type AppPage = 'home' | 'workspace' | 'job'
-type MaterialId = 'wood' | 'bamboo' | 'cardboard' | 'leather' | 'acrylic'
-type EffectId = 'light' | 'standard' | 'deep'
+type AppPage = 'home' | 'workspace' | 'preview' | 'job'
 type WorkMode = 'dry' | 'engrave'
 
 type AppStore = {
@@ -33,6 +32,7 @@ type AppStore = {
   machineState: MachineState
   activity: DeviceStatus['activity']
   workArea: WorkArea | null
+  maxPower: number
   panelOpen: boolean
   confirm: ConfirmKind
   jogStep: JogStep
@@ -43,7 +43,7 @@ type AppStore = {
   lockRatio: boolean
   material: MaterialId
   thicknessMm: number
-  effect: EffectId
+  effect: EffectLevel
   workMode: WorkMode
   hydrate: () => Promise<void>
   requestConnect: () => Promise<void>
@@ -64,6 +64,7 @@ type AppStore = {
   confirmAction: () => Promise<void>
   goHome: () => void
   goWorkspace: () => void
+  goPreview: () => void
   goJob: () => void
   setLockRatio: (lockRatio: boolean) => void
   setWidth: (widthMm: number) => void
@@ -75,7 +76,7 @@ type AppStore = {
   autoShrinkPattern: () => void
   setMaterial: (material: MaterialId) => void
   setThickness: (thicknessMm: number) => void
-  setEffect: (effect: EffectId) => void
+  setEffect: (effect: EffectLevel) => void
   setWorkMode: (workMode: WorkMode) => void
 }
 
@@ -123,6 +124,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   machineState: 'unknown',
   activity: undefined,
   workArea: null,
+  maxPower: 1000,
   panelOpen: false,
   confirm: null,
   jogStep: 1,
@@ -147,6 +149,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
     try {
       const status = await window.device.getStatus()
       mergeStatus(set, () => get().notice, status)
+      await syncMaxPower(set)
     } catch {
       set({ notice: '应用未正确启动，请重启软件。' })
     }
@@ -160,6 +163,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
     try {
       const status = await window.device.connect()
       mergeStatus(set, () => null, status)
+      await syncMaxPower(set)
     } catch {
       set({
         deviceState: 'error',
@@ -256,6 +260,12 @@ export const useAppStore = create<AppStore>((set, get) => ({
   goWorkspace: () => {
     if (get().imported) set({ page: 'workspace' })
   },
+  goPreview: () => {
+    const { placement, workArea, deviceState, imported } = get()
+    if (!imported || !placement || !workArea || deviceState !== 'connected') return
+    if (!canStart(placement, workArea)) return
+    set({ page: 'preview', notice: null })
+  },
   goJob: () => {
     const { placement, workArea, deviceState } = get()
     if (!placement || !workArea || deviceState !== 'connected') return
@@ -327,4 +337,14 @@ function fileErrorMessage(error: unknown): string {
     COPY.importTooLarge,
   ]
   return known.includes(message) ? message : COPY.importFailed
+}
+
+async function syncMaxPower(set: (partial: Partial<AppStore>) => void): Promise<void> {
+  if (!window.machine) return
+  try {
+    const config = await window.machine.getConfig()
+    if (config?.maxPower) set({ maxPower: config.maxPower })
+  } catch {
+    set({ maxPower: 1000 })
+  }
 }

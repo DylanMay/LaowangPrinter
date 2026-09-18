@@ -40,4 +40,11 @@ describe('普通用户文案', () => {
     expect(COPY.workAreaCaption).toBe('工作区域')
     expect(JSON.stringify(COPY)).not.toMatch(/X0|Y0|Z0/)
   })
+
+  it('预览使用预计时间，不出现内部指令术语', () => {
+    expect(COPY.previewTitle).toBe('雕刻预览')
+    expect(COPY.timeLabel).toBe('预计时间')
+    expect(COPY.previewHeadHint).toContain('小圆点')
+    expect(COPY.viewPathCommands).toBe('查看路径指令')
+  })
 })

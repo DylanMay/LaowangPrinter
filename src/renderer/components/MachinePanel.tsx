@@ -1,6 +1,8 @@
 import { COPY } from '@shared/copy'
 import type { JogFeed } from '@shared/types/machine'
 import { JOG_FEEDS, JOG_STEPS } from '@shared/types/machine'
+import { useState } from 'react'
+import { jobGcode } from '../gcode/jobGcode'
 import { useAppStore } from '../store/appStore'
 
 const SPEED_LABELS: Record<JogFeed, string> = {
@@ -25,7 +27,26 @@ export function MachinePanel() {
   const askStop = useAppStore((state) => state.askStop)
   const confirmAction = useAppStore((state) => state.confirmAction)
   const cancelConfirm = useAppStore((state) => state.cancelConfirm)
+  const imported = useAppStore((state) => state.imported)
+  const placement = useAppStore((state) => state.placement)
+  const workArea = useAppStore((state) => state.workArea)
+  const maxPower = useAppStore((state) => state.maxPower)
+  const material = useAppStore((state) => state.material)
+  const thicknessMm = useAppStore((state) => state.thicknessMm)
+  const effect = useAppStore((state) => state.effect)
+  const workMode = useAppStore((state) => state.workMode)
+  const [viewCommands, setViewCommands] = useState(false)
   const busy = Boolean(activity)
+  const gcode = jobGcode({
+    imported,
+    placement,
+    workArea,
+    maxPower,
+    material,
+    thicknessMm,
+    effect,
+    dryRun: workMode === 'dry',
+  })
 
   return (
     <div className="absolute inset-0 z-10 flex items-center justify-center bg-[rgba(28,24,20,0.35)] px-6">
@@ -54,6 +75,21 @@ export function MachinePanel() {
                 {confirm === 'reset' ? COPY.confirmReset : COPY.stopNow}
               </button>
             </div>
+          </div>
+        ) : viewCommands ? (
+          <div className="flex flex-col gap-3">
+            <h2 className="text-center text-xl font-semibold">{COPY.pathCommandsTitle}</h2>
+            <p className="text-center text-[13px] text-muted">{COPY.pathCommandsHint}</p>
+            <pre className="max-h-64 overflow-auto rounded-xl bg-paper p-3 font-mono text-[11px] leading-relaxed text-ink">
+              {gcode?.lines.join('\n') ?? COPY.pathCommandsEmpty}
+            </pre>
+            <button
+              type="button"
+              onClick={() => setViewCommands(false)}
+              className="h-10 self-center rounded-xl bg-ink px-4 text-sm font-semibold text-white"
+            >
+              {COPY.done}
+            </button>
           </div>
         ) : (
           <>
@@ -100,7 +136,14 @@ export function MachinePanel() {
                 </button>
               ))}
             </div>
-            <div className="mt-6 flex justify-center gap-2.5">
+            <div className="mt-6 flex flex-wrap justify-center gap-2.5">
+              <button
+                type="button"
+                onClick={() => setViewCommands(true)}
+                className="h-10 rounded-xl border border-line px-4 text-sm font-semibold"
+              >
+                {COPY.viewPathCommands}
+              </button>
               <button
                 type="button"
                 disabled={!connected || busy}
