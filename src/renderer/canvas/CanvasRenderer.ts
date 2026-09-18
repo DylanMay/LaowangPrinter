@@ -8,6 +8,7 @@ export type CanvasScene = {
   document: SvgDocument
   placement: Placement
   outOfBounds: boolean
+  head?: { x: number; y: number } | null
 }
 
 export function drawWorkspace(
@@ -20,6 +21,7 @@ export function drawWorkspace(
   ctx.clearRect(0, 0, viewport.canvasWidth, viewport.canvasHeight)
   drawBed(ctx, viewport, scene.outOfBounds)
   drawPattern(ctx, viewport, scene)
+  if (scene.head) drawHead(ctx, viewport, scene.head)
 }
 
 function drawBed(ctx: CanvasRenderingContext2D, viewport: Viewport, outOfBounds: boolean): void {
@@ -96,6 +98,22 @@ function strokePaths(
     }
     ctx.stroke()
   }
+}
+
+function drawHead(
+  ctx: CanvasRenderingContext2D,
+  viewport: Viewport,
+  head: { x: number; y: number },
+): void {
+  const pixel = workspaceToPixel(head, viewport)
+  const radius = Math.max(5, viewport.pxPerMm * 1.6)
+  ctx.beginPath()
+  ctx.arc(pixel.x, pixel.y, radius, 0, Math.PI * 2)
+  ctx.fillStyle = '#215c4c'
+  ctx.fill()
+  ctx.lineWidth = 2
+  ctx.strokeStyle = '#fffcf7'
+  ctx.stroke()
 }
 
 export function patternHit(scene: CanvasScene, workspacePoint: { x: number; y: number }): boolean {

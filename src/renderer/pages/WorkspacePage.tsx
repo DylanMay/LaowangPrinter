@@ -1,9 +1,11 @@
 import { COPY } from '@shared/copy'
 import { canStart, isOutOfBounds, isTooLarge } from '@shared/geometry/CoordinateTransformer'
+import { formatDuration } from '@shared/gcode/GCodeEstimator'
 import { formatSizeMm } from '@shared/types/workspace'
 import { useState } from 'react'
 import { useAppStore } from '../store/appStore'
 import { WorkspaceCanvas } from '../components/WorkspaceCanvas'
+import { jobGcode } from '../gcode/jobGcode'
 
 export function WorkspacePage() {
   const imported = useAppStore((state) => state.imported)
@@ -16,7 +18,9 @@ export function WorkspacePage() {
   const openSvg = useAppStore((state) => state.openSvg)
   const autoShrinkPattern = useAppStore((state) => state.autoShrinkPattern)
   const goJob = useAppStore((state) => state.goJob)
-  const showNotice = useAppStore((state) => state.showNotice)
+  const goPreview = useAppStore((state) => state.goPreview)
+  const maxPower = useAppStore((state) => state.maxPower)
+  const workMode = useAppStore((state) => state.workMode)
   const connected = useAppStore((state) => state.deviceState === 'connected')
 
   if (!imported || !placement || !workArea) return null
@@ -24,6 +28,16 @@ export function WorkspacePage() {
   const tooLarge = isTooLarge(placement, workArea)
   const outOfBounds = isOutOfBounds(placement, workArea)
   const startOk = connected && canStart(placement, workArea)
+  const gcode = jobGcode({
+    imported,
+    placement,
+    workArea,
+    maxPower,
+    material,
+    thicknessMm,
+    effect,
+    dryRun: workMode === 'dry',
+  })
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -62,6 +76,12 @@ export function WorkspacePage() {
           </div>
         </div>
         <div className="text-[12px] text-muted">
+          {COPY.timeLabel}
+          <div className="text-[15px] font-semibold text-ink">
+            {gcode ? formatDuration(gcode.estimatedTime) : '—'}
+          </div>
+        </div>
+        <div className="text-[12px] text-muted">
           {COPY.material}
           <div className="text-[15px] font-semibold text-ink">
             {materialSummary(material, thicknessMm, effect)}
@@ -78,8 +98,9 @@ export function WorkspacePage() {
           </button>
           <button
             type="button"
-            onClick={() => showNotice(COPY.previewLater)}
-            className="h-10 rounded-xl border border-line bg-surface px-4 text-sm font-semibold"
+            disabled={!startOk}
+            onClick={goPreview}
+            className="h-10 rounded-xl border border-line bg-surface px-4 text-sm font-semibold disabled:opacity-40"
           >
             {COPY.preview}
           </button>

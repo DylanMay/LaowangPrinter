@@ -2,7 +2,9 @@ import { useEffect } from 'react'
 import { DeviceStatus } from './components/DeviceStatus'
 import { HomePage } from './pages/HomePage'
 import { JobPage } from './pages/JobPage'
+import { PreviewPage } from './pages/PreviewPage'
 import { WorkspacePage } from './pages/WorkspacePage'
+import { ConfirmDialog } from './components/ConfirmDialog'
 import { MachinePanel } from './components/MachinePanel'
 import { useAppStore } from './store/appStore'
 import { COPY } from '@shared/copy'
@@ -57,8 +59,17 @@ export function App() {
           {COPY.settings}
         </button>
       </header>
-      {page === 'workspace' ? <WorkspacePage /> : page === 'job' ? <JobPage /> : <HomePage />}
+      {page === 'workspace' ? (
+        <WorkspacePage />
+      ) : page === 'preview' ? (
+        <PreviewPage />
+      ) : page === 'job' ? (
+        <JobPage />
+      ) : (
+        <HomePage />
+      )}
       {panelOpen ? <MachinePanel /> : null}
+      <ConfirmDialog />
     </div>
   )
 }

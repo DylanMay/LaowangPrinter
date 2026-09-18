@@ -1,5 +1,7 @@
 import type { DeviceState, DeviceStatus, MachineState } from '@shared/types/state'
+import type { JobProgress } from '@shared/types/job'
 import type { JogFeed, JogStep } from '@shared/types/machine'
+import type { EffectLevel, MaterialId } from '@shared/materials/MaterialPreset'
 import type { OpenSvgResult } from '@shared/types/svg'
 import type { Placement, WorkArea } from '@shared/types/workspace'
 import {
@@ -15,12 +17,12 @@ import {
   scalePlacement,
 } from '@shared/geometry/CoordinateTransformer'
 import { COPY } from '@shared/copy'
+import { checkJobSafety } from '@shared/job/SafetyChecker'
+import { jobGcode } from '../gcode/jobGcode'
 import { create } from 'zustand'
 
 type ConfirmKind = 'reset' | 'stop' | null
-type AppPage = 'home' | 'workspace' | 'job'
-type MaterialId = 'wood' | 'bamboo' | 'cardboard' | 'leather' | 'acrylic'
-type EffectId = 'light' | 'standard' | 'deep'
+type AppPage = 'home' | 'workspace' | 'preview' | 'job'
 type WorkMode = 'dry' | 'engrave'
 
 type AppStore = {
@@ -33,6 +35,7 @@ type AppStore = {
   machineState: MachineState
   activity: DeviceStatus['activity']
   workArea: WorkArea | null
+  maxPower: number
   panelOpen: boolean
   confirm: ConfirmKind
   jogStep: JogStep
@@ -43,8 +46,9 @@ type AppStore = {
   lockRatio: boolean
   material: MaterialId
   thicknessMm: number
-  effect: EffectId
+  effect: EffectLevel
   workMode: WorkMode
+  jobProgress: JobProgress
   hydrate: () => Promise<void>
   requestConnect: () => Promise<void>
   submitSize: (widthMm: number, heightMm: number) => Promise<void>
@@ -64,7 +68,12 @@ type AppStore = {
   confirmAction: () => Promise<void>
   goHome: () => void
   goWorkspace: () => void
+  goPreview: () => void
   goJob: () => void
+  startJob: () => Promise<void>
+  pauseJob: () => Promise<void>
+  resumeJob: () => Promise<void>
+  resetJob: () => void
   setLockRatio: (lockRatio: boolean) => void
   setWidth: (widthMm: number) => void
   setHeight: (heightMm: number) => void
@@ -75,7 +84,7 @@ type AppStore = {
   autoShrinkPattern: () => void
   setMaterial: (material: MaterialId) => void
   setThickness: (thicknessMm: number) => void
-  setEffect: (effect: EffectId) => void
+  setEffect: (effect: EffectLevel) => void
   setWorkMode: (workMode: WorkMode) => void
 }
 
@@ -113,6 +122,19 @@ function applyImport(
 
 let listening = false
 
+const IDLE_JOB: JobProgress = {
+  state: 'idle',
+  jobState: 'idle',
+  percent: 0,
+  remainingSeconds: 0,
+  elapsedSeconds: 0,
+  estimatedTime: 0,
+  sentLines: 0,
+  totalLines: 0,
+  currentLine: '',
+  dryRun: false,
+}
+
 export const useAppStore = create<AppStore>((set, get) => ({
   page: 'home',
   deviceState: 'disconnected',
@@ -123,6 +145,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   machineState: 'unknown',
   activity: undefined,
   workArea: null,
+  maxPower: 1000,
   panelOpen: false,
   confirm: null,
   jogStep: 1,
@@ -135,6 +158,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   thicknessMm: 3,
   effect: 'standard',
   workMode: 'dry',
+  jobProgress: IDLE_JOB,
   hydrate: async () => {
     if (!window.device) {
       set({ notice: '应用未正确启动，请重启软件。' })
@@ -143,10 +167,18 @@ export const useAppStore = create<AppStore>((set, get) => ({
     if (!listening) {
       listening = true
       window.device.on('device:status', (status) => mergeStatus(set, () => get().notice, status))
+      if (window.job) {
+        const onJob = (progress: JobProgress) => set({ jobProgress: progress })
+        window.job.on('job:progress', onJob)
+        window.job.on('job:paused', onJob)
+        window.job.on('job:completed', onJob)
+        window.job.on('job:error', onJob)
+      }
     }
     try {
       const status = await window.device.getStatus()
       mergeStatus(set, () => get().notice, status)
+      await syncMaxPower(set)
     } catch {
       set({ notice: '应用未正确启动，请重启软件。' })
     }
@@ -160,6 +192,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
     try {
       const status = await window.device.connect()
       mergeStatus(set, () => null, status)
+      await syncMaxPower(set)
     } catch {
       set({
         deviceState: 'error',
@@ -240,9 +273,16 @@ export const useAppStore = create<AppStore>((set, get) => ({
   askStop: () => set({ confirm: 'stop' }),
   cancelConfirm: () => set({ confirm: null }),
   confirmAction: async () => {
-    if (!window.machine) return
     const kind = get().confirm
     set({ confirm: null })
+    if (kind === 'stop') {
+      const jobState = get().jobProgress.state
+      if (jobState === 'running' || jobState === 'paused') {
+        if (window.job) await window.job.stop()
+        return
+      }
+    }
+    if (!window.machine) return
     if (kind === 'reset') {
       const status = await window.machine.reset()
       mergeStatus(set, () => null, status)
@@ -256,12 +296,64 @@ export const useAppStore = create<AppStore>((set, get) => ({
   goWorkspace: () => {
     if (get().imported) set({ page: 'workspace' })
   },
+  goPreview: () => {
+    const { placement, workArea, deviceState, imported } = get()
+    if (!imported || !placement || !workArea || deviceState !== 'connected') return
+    if (!canStart(placement, workArea)) return
+    set({ page: 'preview', notice: null })
+  },
   goJob: () => {
     const { placement, workArea, deviceState } = get()
     if (!placement || !workArea || deviceState !== 'connected') return
     if (!canStart(placement, workArea)) return
-    set({ page: 'job', notice: null })
+    set({ page: 'job', notice: null, jobProgress: get().jobProgress.state === 'running' || get().jobProgress.state === 'paused' ? get().jobProgress : IDLE_JOB })
   },
+  startJob: async () => {
+    if (!window.job) {
+      set({ notice: COPY.cannotStart })
+      return
+    }
+    const { imported, placement, workArea, maxPower, material, thicknessMm, effect, workMode, deviceState, machineState } = get()
+    const gcode = jobGcode({
+      imported,
+      placement,
+      workArea,
+      maxPower,
+      material,
+      thicknessMm,
+      effect,
+      dryRun: workMode === 'dry',
+    })
+    const safety = checkJobSafety({
+      connected: deviceState === 'connected',
+      alarm: machineState === 'alarm',
+      inBounds: Boolean(placement && workArea && canStart(placement, workArea)),
+      hasLines: Boolean(gcode?.lines.length),
+    })
+    if (!safety.ok) {
+      set({ notice: safety.message })
+      return
+    }
+    try {
+      const progress = await window.job.start({
+        lines: gcode!.lines,
+        estimatedTime: gcode!.estimatedTime,
+        dryRun: workMode === 'dry',
+      })
+      set({ jobProgress: progress, page: 'job', notice: null })
+    } catch (error) {
+      set({ notice: error instanceof Error ? error.message : COPY.cannotStart })
+    }
+  },
+  pauseJob: async () => {
+    if (!window.job) return
+    await window.job.pause()
+  },
+  resumeJob: async () => {
+    if (!window.job) return
+    await window.job.resume()
+  },
+  resetJob: () => set({ jobProgress: IDLE_JOB, page: 'job', notice: null }),
   setLockRatio: (lockRatio) => set({ lockRatio }),
   setWidth: (widthMm) => {
     const { placement, lockRatio } = get()
@@ -327,4 +419,14 @@ function fileErrorMessage(error: unknown): string {
     COPY.importTooLarge,
   ]
   return known.includes(message) ? message : COPY.importFailed
+}
+
+async function syncMaxPower(set: (partial: Partial<AppStore>) => void): Promise<void> {
+  if (!window.machine) return
+  try {
+    const config = await window.machine.getConfig()
+    if (config?.maxPower) set({ maxPower: config.maxPower })
+  } catch {
+    set({ maxPower: 1000 })
+  }
 }

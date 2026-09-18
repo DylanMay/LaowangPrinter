@@ -31,6 +31,7 @@ describe('Renderer 隔离', () => {
       expect(source, file).not.toMatch(/require\(/)
       expect(source, file).not.toMatch(/workspaceToMachine/)
       expect(source, file).not.toMatch(/svgToMachine/)
+      expect(source, file).not.toMatch(/machinePaths/)
     }
   })
 
@@ -44,6 +45,7 @@ describe('Renderer 隔离', () => {
       const source = readFileSync(file, 'utf8')
       expect(source, file).not.toMatch(/workspaceToMachine/)
       expect(source, file).not.toMatch(/svgToMachine/)
+      expect(source, file).not.toMatch(/machinePaths/)
     }
   })
 })

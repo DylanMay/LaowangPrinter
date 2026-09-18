@@ -40,6 +40,12 @@ export function workspacePaths(document: SvgDocument, placement: Placement): Pat
   }))
 }
 
+export function machinePaths(document: SvgDocument, placement: Placement, workArea: WorkArea): Path[] {
+  return document.paths.map((path) => ({
+    points: path.points.map((point) => svgToMachine(point, document, placement, workArea)),
+  }))
+}
+
 export function placementBounds(placement: Placement): Bounds {
   return {
     minX: placement.xMm,
