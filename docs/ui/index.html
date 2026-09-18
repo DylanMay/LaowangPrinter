@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>老王打印机 · UI 原型</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <div class="studio">
+    <aside class="rail">
+      <h1>老王打印机</h1>
+      <p class="sub">MVP 可点击原型<br />像打印机，不像机床</p>
+      <button class="play" type="button" data-play>演示主流程</button>
+
+      <h2>主流程</h2>
+      <button class="nav active" data-screen="home-off">首页 · 未连接</button>
+      <button class="nav" data-screen="home-search">首页 · 查找中</button>
+      <button class="nav" data-screen="home-on">首页 · 已连接</button>
+      <button class="nav" data-screen="home-first">首页 · 首次测试</button>
+      <button class="nav" data-screen="workspace">工作区</button>
+      <button class="nav" data-screen="preview">雕刻预览</button>
+      <button class="nav" data-screen="safety">开始前检查</button>
+      <button class="nav" data-screen="job-run">正在雕刻</button>
+      <button class="nav" data-screen="job-done">雕刻完成</button>
+
+      <h2>状态</h2>
+      <button class="nav" data-screen="workspace-oob">图案超出</button>
+      <button class="nav" data-screen="workspace-big">图案太大</button>
+      <button class="nav" data-screen="job-pause">已暂停</button>
+      <button class="nav" data-screen="job-unplug">连接断开</button>
+      <button class="nav" data-screen="alarm">设备异常</button>
+      <button class="nav" data-screen="port-busy">无法连接</button>
+
+      <h2>引导与高级</h2>
+      <button class="nav" data-screen="onboard">首次引导</button>
+      <button class="nav" data-screen="help">连接帮助</button>
+      <button class="nav" data-screen="machine">机器控制</button>
+      <button class="nav" data-screen="settings">高级设置</button>
+      <button class="nav" data-screen="stop-confirm">确认停止</button>
+    </aside>
+
+    <div class="stage">
+      <div class="window" id="app">
+        <div class="titlebar">
+          <div class="traffic"><i></i><i></i><i></i></div>
+          <div class="brand"><span class="mark">印</span>老王打印机</div>
+          <div class="spacer"></div>
+          <div class="status" id="deviceStatus"><span class="dot"></span><span class="label">未检测到雕刻机</span></div>
+          <button class="linkish" type="button" data-go="help">帮助</button>
+          <button class="linkish" type="button" data-go="settings">设置</button>
+        </div>
+
+        <section class="view home show" data-view="home">
+          <h2>激光雕刻</h2>
+          <p class="lead" id="homeLead">像用打印机一样，把图案刻到材料上</p>
+          <div class="drop disabled" id="dropzone">
+            <div class="icon">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <path d="M12 3v12" />
+                <path d="M7 8l5-5 5 5" />
+                <rect x="4" y="15" width="16" height="6" rx="1.5" />
+              </svg>
+            </div>
+            <p id="dropTitle">请先连接雕刻机</p>
+            <span id="dropHint">插入 USB 后会自动查找</span>
+          </div>
+          <div class="home-actions" id="homeActions"></div>
+          <div class="hint-card" id="firstHint" hidden>
+            <div>我们先确认雕刻机工作正常。</div>
+            <button class="btn btn-brand" type="button" data-go="device-test">开始测试</button>
+          </div>
+        </section>
+
+        <section class="view workspace" data-view="workspace">
+          <div class="work-body">
+            <div class="canvas-wrap">
+              <div class="banner warn" id="banner"></div>
+              <div class="bed-frame">
+                <div class="bed" id="bed">
+                  <div class="pattern" id="pattern">
+                    <svg viewBox="0 0 100 60" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round">
+                      <circle cx="78" cy="16" r="7" />
+                      <path d="M8 50 L30 22 L46 38 L62 20 L92 50" />
+                      <path d="M8 50 H92" />
+                    </svg>
+                  </div>
+                  <div class="head" id="head"></div>
+                </div>
+              </div>
+              <div class="bed-caption">工作区域 300 × 200 mm</div>
+            </div>
+            <aside class="panel">
+              <div class="card">
+                <div>
+                  <h3>尺寸</h3>
+                  <div class="row" style="margin-top:8px">
+                    <div class="field">
+                      <label>宽</label>
+                      <input id="widthInput" value="50 mm" />
+                    </div>
+                    <button class="lock" type="button" title="锁定比例">锁</button>
+                    <div class="field">
+                      <label>高</label>
+                      <input id="heightInput" value="30 mm" />
+                    </div>
+                  </div>
+                  <div class="quiet" style="margin-top:8px">
+                    <button class="btn" type="button" data-toast="已居中">居中</button>
+                    <button class="btn" type="button" data-toast="已适应工作区">适应工作区</button>
+                  </div>
+                </div>
+                <div>
+                  <h3>材料</h3>
+                  <div class="row" style="margin-top:8px">
+                    <div class="field">
+                      <label>种类</label>
+                      <select>
+                        <option selected>木板</option>
+                        <option>竹子</option>
+                        <option>纸板</option>
+                        <option>皮革</option>
+                        <option>亚克力</option>
+                      </select>
+                    </div>
+                    <div class="field">
+                      <label>厚度</label>
+                      <select>
+                        <option>2 mm</option>
+                        <option selected>3 mm</option>
+                        <option>5 mm</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+                <div>
+                  <h3>效果</h3>
+                  <div class="segmented" style="margin-top:8px" data-segment="effect">
+                    <button type="button">轻度</button>
+                    <button class="on" type="button">标准</button>
+                    <button type="button">深度</button>
+                  </div>
+                </div>
+                <div>
+                  <h3>工作方式</h3>
+                  <div class="segmented" style="margin-top:8px" data-segment="mode">
+                    <button class="on" type="button">空载测试</button>
+                    <button type="button">正常雕刻</button>
+                  </div>
+                  <p class="note" style="margin-top:8px">空载测试时机器会移动，但不会开激光。第一次建议先走空载。</p>
+                </div>
+                <p class="note">实际效果会因机器、激光功率和材料不同而有所差异。</p>
+              </div>
+            </aside>
+          </div>
+          <footer class="footer" id="footer">
+            <div class="meta"><span>雕刻范围</span><b id="rangeText">50 × 30 mm</b></div>
+            <div class="meta"><span>预计时间</span><b id="timeText">1 分 32 秒</b></div>
+            <div class="meta"><span>材料</span><b>3mm 木板 · 标准</b></div>
+            <div class="grow"></div>
+            <div class="progress" id="progress">
+              <div>
+                <div class="job-title" id="jobTitle">正在雕刻…</div>
+                <span class="note" id="jobRemain">预计剩余 42 秒</span>
+              </div>
+              <div class="bar"><i id="barFill"></i></div>
+              <b id="pct">0%</b>
+            </div>
+            <button class="btn" type="button" id="btnPreview">预览</button>
+            <button class="btn btn-primary btn-lg" type="button" id="btnStart">开始雕刻</button>
+            <button class="btn" type="button" id="btnPause" hidden>暂停</button>
+            <button class="btn btn-danger" type="button" id="btnStop" hidden>停止</button>
+            <button class="btn btn-brand" type="button" id="btnResume" hidden>继续</button>
+          </footer>
+        </section>
+
+        <div class="toast" id="toast"></div>
+
+      <div class="overlay" data-overlay="preview">
+        <div class="bed" style="width:72%; position:relative" id="previewBed">
+          <div class="pattern">
+            <svg viewBox="0 0 100 60" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round">
+              <circle cx="78" cy="16" r="7" />
+              <path d="M8 50 L30 22 L46 38 L62 20 L92 50" />
+              <path d="M8 50 H92" />
+            </svg>
+          </div>
+          <div class="head" style="display:block"></div>
+        </div>
+        <div class="preview-panel">
+          <p>雕刻预览</p>
+          <p>范围 <b>50 × 30 mm</b></p>
+          <p>预计 <b>1 分 32 秒</b></p>
+          <p>材料 <b>3mm 木板</b></p>
+          <p>效果 <b>标准</b></p>
+          <p>方式 <b>空载测试</b></p>
+        </div>
+        <div class="preview-actions">
+          <button class="btn" type="button" data-go="workspace">返回修改</button>
+          <button class="btn btn-primary" type="button" data-go="safety">开始雕刻</button>
+        </div>
+      </div>
+
+      <div class="overlay" data-overlay="safety">
+        <div class="modal">
+          <h2>开始雕刻前检查</h2>
+          <p class="desc" id="safetyDesc">机器会按预览路径移动，但不会开激光</p>
+          <ul class="check">
+            <li>雕刻机已连接</li>
+            <li>图案在工作区域内</li>
+            <li>材料：3mm 木板</li>
+            <li>雕刻尺寸：50 × 30 mm</li>
+            <li>参数已准备</li>
+          </ul>
+          <div class="confirm-box">
+            请确认：已正确放置材料<br />
+            已确保工作区域安全<br />
+            材料适合当前激光设备
+          </div>
+          <div class="modal-actions">
+            <button class="btn" type="button" data-go="workspace">取消</button>
+            <button class="btn btn-primary" type="button" id="confirmStart">开始空载测试</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="overlay" data-overlay="job-done">
+        <div class="modal">
+          <div class="success-mark">✓</div>
+          <h2>雕刻完成</h2>
+          <p class="desc">用时：1 分 32 秒</p>
+          <div class="modal-actions center-actions">
+            <button class="btn" type="button" data-go="home-on">返回首页</button>
+            <button class="btn btn-primary" type="button" data-go="safety">再次雕刻</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="overlay" data-overlay="job-unplug">
+        <div class="modal">
+          <div class="error-mark">!</div>
+          <h2>雕刻机连接已断开</h2>
+          <p class="desc">请检查 USB 连接。</p>
+          <div class="modal-actions center-actions">
+            <button class="btn btn-primary" type="button" data-go="home-search">重新连接</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="overlay" data-overlay="alarm">
+        <div class="modal">
+          <div class="error-mark">!</div>
+          <h2>雕刻机处于异常状态</h2>
+          <p class="desc">请检查机器，然后重新归零。</p>
+          <div class="modal-actions center-actions">
+            <button class="btn" type="button" data-go="help">查看帮助</button>
+            <button class="btn btn-primary" type="button" data-go="machine">回到原点</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="overlay" data-overlay="port-busy">
+        <div class="modal">
+          <div class="error-mark">!</div>
+          <h2>无法连接雕刻机</h2>
+          <p class="desc">可能有其他软件正在使用这台设备。</p>
+          <div class="modal-actions center-actions">
+            <button class="btn btn-primary" type="button" data-go="home-search">重试</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="overlay" data-overlay="stop-confirm">
+        <div class="modal">
+          <h2>确定停止当前雕刻吗？</h2>
+          <p class="desc">停止后需要重新开始任务。</p>
+          <div class="modal-actions">
+            <button class="btn" type="button" data-go="job-run">继续雕刻</button>
+            <button class="btn btn-danger-solid" type="button" data-go="workspace">停止</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="overlay" data-overlay="onboard">
+        <div class="modal" id="onboardModal">
+          <div class="steps" id="onboardDots"><i class="on"></i><i></i><i></i><i></i><i></i></div>
+          <h2 id="onboardTitle">连接雕刻机</h2>
+          <p class="desc" id="onboardDesc">把 USB 线插入电脑，软件会自动查找。</p>
+          <div class="modal-actions center-actions">
+            <button class="btn btn-primary" type="button" id="onboardNext">下一步</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="overlay" data-overlay="device-test">
+        <div class="modal">
+          <h2>设备移动测试</h2>
+          <p class="desc">接下来会轻轻移动机器，确认连接正常。不会开激光。</p>
+          <div class="modal-actions center-actions">
+            <button class="btn" type="button" data-go="home-on">稍后再说</button>
+            <button class="btn btn-primary" type="button" id="runDeviceTest">开始测试</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="overlay" data-overlay="help">
+        <div class="modal">
+          <h2>连接帮助</h2>
+          <ol class="help-list">
+            <li><b>1. 插上 USB</b>用雕刻机附带的数据线接到电脑。</li>
+            <li><b>2. 关掉其他软件</b>如果开着别的雕刻软件，请先退出。</li>
+            <li><b>3. 再试一次</b>点「重新检测」，等待「雕刻机已连接」。</li>
+          </ol>
+          <div class="modal-actions">
+            <button class="btn btn-primary" type="button" data-go="home-search">重新检测</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="overlay" data-overlay="settings">
+        <div class="modal settings">
+          <h2>高级设置</h2>
+          <p class="desc">这些信息给需要排查问题的人看。</p>
+          <dl class="kv">
+            <dt>设备</dt><dd>我的雕刻机 · COM3</dd>
+            <dt>波特率</dt><dd>115200</dd>
+            <dt>固件</dt><dd>GRBL 1.1h</dd>
+            <dt>工作区域</dt><dd>300 × 200 mm</dd>
+            <dt>最大功率</dt><dd>1000</dd>
+            <dt>激光模式</dt><dd>开启</dd>
+          </dl>
+          <p class="note" style="margin-bottom:8px">G-code</p>
+          <pre class="gcode">G21
+G90
+G0 X125.000 Y85.000
+M3 S200
+G1 X175.000 Y85.000 F1000
+M5</pre>
+          <div class="modal-actions">
+            <button class="btn" type="button" data-go="machine">机器控制</button>
+            <button class="btn btn-primary" type="button" data-close>完成</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="overlay" data-overlay="machine">
+        <div class="modal">
+          <h2>机器控制</h2>
+          <p class="desc">点动只会移动，不会开激光。</p>
+          <div class="segmented" data-segment="jog-step">
+            <button class="on" type="button">1 mm</button>
+            <button type="button">10 mm</button>
+            <button type="button">100 mm</button>
+          </div>
+          <div class="jog">
+            <button class="blank"></button>
+            <button type="button">上</button>
+            <button class="blank"></button>
+            <button type="button">左</button>
+            <button type="button" data-toast="正在寻找机器原点…">原点</button>
+            <button type="button">右</button>
+            <button class="blank"></button>
+            <button type="button">下</button>
+            <button class="blank"></button>
+          </div>
+          <div class="segmented" data-segment="jog-speed">
+            <button type="button">慢</button>
+            <button class="on" type="button">中</button>
+            <button type="button">快</button>
+            <button type="button">很快</button>
+          </div>
+          <p class="note" style="text-align:center;margin:12px 0 0">速度对应 100 / 500 / 1000 / 3000，普通用户只看快慢。</p>
+          <div class="modal-actions" style="margin-top:16px">
+            <button class="btn btn-danger" type="button" data-toast="正在重置雕刻机">重置雕刻机</button>
+            <button class="btn btn-primary" type="button" data-close>完成</button>
+          </div>
+        </div>
+      </div>
+      </div>
+    </div>
+  </div>
+  <script src="./app.js"></script>
+</body>
+</html>
