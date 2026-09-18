@@ -7,7 +7,7 @@ export function createSerialBackend(): SerialBackend {
   if (env.LAOWANG_SERIAL === 'mock') {
     return createMockEngraverBackend({
       omitTravel: env.LAOWANG_MOCK_NOSIZE === '1',
-      delayMotionMs: 180,
+      delayMotionMs: 700,
     })
   }
   return new NodeSerialBackend()
