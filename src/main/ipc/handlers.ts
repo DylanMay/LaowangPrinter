@@ -16,6 +16,10 @@ export function registerIpcHandlers(device: DeviceService): void {
   ipcMain.handle('device:connect', (_event, id?: string) => device.connect(id))
   ipcMain.handle('device:disconnect', () => device.disconnect())
   ipcMain.handle('device:getStatus', () => device.getStatus())
+  ipcMain.handle('machine:getConfig', () => device.getConfig())
+  ipcMain.handle('machine:setSize', (_event, widthMm: number, heightMm: number) =>
+    device.setSize(widthMm, heightMm),
+  )
 
   device.onStatus((status) => {
     broadcast('device:status', status)

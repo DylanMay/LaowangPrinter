@@ -2,6 +2,8 @@ export type AppErrorCode =
   | 'DEVICE_DISCONNECTED'
   | 'PORT_BUSY'
   | 'NO_DEVICE'
+  | 'GRBL_ERROR'
+  | 'GRBL_ALARM'
   | 'UNKNOWN'
 
 export type AppError = {
@@ -23,6 +25,14 @@ export const USER_ERRORS: Record<AppErrorCode, { userMessage: string; hint?: str
   NO_DEVICE: {
     userMessage: '没有检测到雕刻机。',
     hint: '请插上 USB 后再试一次。',
+  },
+  GRBL_ERROR: {
+    userMessage: '雕刻机无法执行当前动作。',
+    hint: '可能是图案或机器设置存在问题。',
+  },
+  GRBL_ALARM: {
+    userMessage: '雕刻机处于异常状态。',
+    hint: '请检查机器，然后重新归零。',
   },
   UNKNOWN: {
     userMessage: '无法连接雕刻机。',
@@ -50,8 +60,11 @@ function detailOf(error: unknown): string {
 
 function readCode(error: unknown, technicalDetail: string): AppErrorCode {
   const code = typeof error === 'object' && error && 'code' in error ? String(error.code) : ''
-  if (code === 'PORT_BUSY' || code === 'NO_DEVICE' || code === 'DEVICE_DISCONNECTED') {
+  if (code === 'PORT_BUSY' || code === 'DEVICE_DISCONNECTED' || code === 'GRBL_ERROR' || code === 'GRBL_ALARM') {
     return code
+  }
+  if (code === 'NO_DEVICE' || code === 'NOT_GRBL') {
+    return 'NO_DEVICE'
   }
   if (/access denied|eacces|ebusy|in use|cannot lock|resource busy|eperm/i.test(technicalDetail)) {
     return 'PORT_BUSY'
@@ -59,8 +72,14 @@ function readCode(error: unknown, technicalDetail: string): AppErrorCode {
   if (/disconnected|unplug|enxio|enoent/i.test(technicalDetail)) {
     return 'DEVICE_DISCONNECTED'
   }
-  if (/not found|no port|no device/i.test(technicalDetail)) {
+  if (/not found|no port|no device|not a grbl/i.test(technicalDetail)) {
     return 'NO_DEVICE'
+  }
+  if (/grbl error:\s*\d+/i.test(technicalDetail) || /^error:\s*\d+/i.test(technicalDetail)) {
+    return 'GRBL_ERROR'
+  }
+  if (/alarm:\s*\d+/i.test(technicalDetail)) {
+    return 'GRBL_ALARM'
   }
   return 'UNKNOWN'
 }

@@ -6,6 +6,7 @@ type Handler<T> = (value: T) => void
 export class MockSerialPort implements SerialPortLike {
   isOpen = false
   readonly written: Array<string | Buffer> = []
+  onWrite?: Handler<string | Buffer>
   private dataHandlers: Handler<Buffer>[] = []
   private errorHandlers: Handler<Error>[] = []
   private closeHandlers: Handler<void>[] = []
@@ -30,6 +31,7 @@ export class MockSerialPort implements SerialPortLike {
       throw new Error('Port is closed')
     }
     this.written.push(data)
+    this.onWrite?.(data)
   }
 
   onData(handler: Handler<Buffer>): void {

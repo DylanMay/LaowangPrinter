@@ -25,6 +25,7 @@ describe('Electron 安全配置', () => {
     expect(source).toContain('contextBridge.exposeInMainWorld')
     expect(source).toContain("'app'")
     expect(source).toContain("'device'")
+    expect(source).toContain("'machine'")
     expect(source).not.toMatch(/exposeInMainWorld\(\s*['"]ipcRenderer['"]/)
     expect(source).not.toMatch(/exposeInMainWorld\([^)]*ipcRenderer/)
   })
