@@ -4,15 +4,25 @@
 
 > 让软件理解机器，让用户只需要理解自己想刻什么。
 
-当前仓库处于 MVP 文档阶段，应用代码按开发计划分 Phase 实现，完成后须停止等待下一指令。
+当前仓库处于 MVP 文档与 UI 原型阶段，应用代码按开发计划分 Phase 实现，完成后须停止等待下一指令。
 
 ## 文档
 
 | 文档 | 内容 |
 | --- | --- |
 | [产品文档](docs/PRODUCT.md) | 定位、用户流程、页面、文案、安全、验收 |
+| [UI 设计](docs/UI.md) | 视觉规范、三个核心页面、组件与文案 |
+| [可点击原型](docs/ui/index.html) | 浏览器打开，走通主流程与异常状态 |
 | [技术文档](docs/TECHNICAL.md) | 架构、模块、IPC、GRBL / SVG / G-code、测试 |
-| [开发计划](docs/DEVELOPMENT_PLAN.md) | Phase 1–10、每阶段交付与停止条件 |
+| [开发计划](docs/DEVELOPMENT_PLAN.md) | Phase 1–10，每阶段交付与停止条件 |
+
+本地查看原型：
+
+```bash
+# 直接用浏览器打开 docs/ui/index.html
+# 或
+python3 -m http.server 4173 --directory docs/ui
+```
 
 ## MVP 做什么
 
@@ -38,16 +48,16 @@ Electron · React · TypeScript · Vite · serialport · Zustand · Tailwind CSS
 
 ## 开发阶段
 
-1. 项目基础架构  
-2. 串口  
-3. GRBL  
-4. 机器控制  
-5. SVG  
-6. Canvas  
-7. G-code  
-8. Sender  
-9. 傻瓜化 UX  
-10. 完整 MVP 验收  
+1. 项目基础架构
+2. 串口
+3. GRBL
+4. 机器控制
+5. SVG
+6. Canvas
+7. G-code
+8. Sender
+9. 傻瓜化 UX
+10. 完整 MVP 验收
 
 每个 Phase 结束后运行 `npm test` 与 `npm run build`，汇报变更与测试结果，然后停止。
 
