@@ -6,10 +6,12 @@ export function DeviceStatus() {
   const notice = useAppStore((state) => state.notice)
   const machineState = useAppStore((state) => state.machineState)
   const activity = useAppStore((state) => state.activity)
+  const jobState = useAppStore((state) => state.jobProgress.state)
+  const dryRun = useAppStore((state) => state.jobProgress.dryRun)
   const connected = deviceState === 'connected'
   const detecting = deviceState === 'detecting' || deviceState === 'connecting'
   const errored = deviceState === 'error'
-  const label = statusLabel(deviceState, machineState, activity, notice)
+  const label = statusLabel(deviceState, machineState, activity, notice, jobState, dryRun)
 
   return (
     <div
@@ -34,7 +36,11 @@ function statusLabel(
   machineState: string,
   activity: string | undefined,
   notice: string | null,
+  jobState: string,
+  dryRun: boolean,
 ): string {
+  if (jobState === 'running') return dryRun ? COPY.dryRunning : COPY.engraving
+  if (jobState === 'paused') return COPY.paused
   if (activity === 'homing' || machineState === 'homing') return COPY.findingOrigin
   if (activity === 'resetting') return COPY.resetting
   if (activity === 'testing') return COPY.testingMove

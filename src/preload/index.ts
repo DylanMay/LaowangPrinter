@@ -1,5 +1,5 @@
 import { APP_NAME } from '@shared/copy'
-import type { DeviceEventName } from '@shared/types/preload'
+import type { DeviceEventName, JobEventName } from '@shared/types/preload'
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
 
 const DEVICE_EVENTS: DeviceEventName[] = [
@@ -8,6 +8,8 @@ const DEVICE_EVENTS: DeviceEventName[] = [
   'device:error',
   'device:status',
 ]
+
+const JOB_EVENTS: JobEventName[] = ['job:progress', 'job:paused', 'job:completed', 'job:error']
 
 contextBridge.exposeInMainWorld('app', {
   getName: () => APP_NAME,
@@ -50,5 +52,23 @@ contextBridge.exposeInMainWorld('file', {
   importDropped: (file: File) => {
     const filePath = webUtils.getPathForFile(file)
     return ipcRenderer.invoke('file:importSvg', filePath)
+  },
+})
+
+contextBridge.exposeInMainWorld('job', {
+  start: (options: unknown) => ipcRenderer.invoke('job:start', options),
+  pause: () => ipcRenderer.invoke('job:pause'),
+  resume: () => ipcRenderer.invoke('job:resume'),
+  stop: () => ipcRenderer.invoke('job:stop'),
+  getProgress: () => ipcRenderer.invoke('job:getProgress'),
+  on: (event: JobEventName, listener: (progress: unknown) => void) => {
+    if (!JOB_EVENTS.includes(event)) {
+      return () => undefined
+    }
+    const wrapped = (_event: unknown, progress: unknown) => listener(progress)
+    ipcRenderer.on(event, wrapped)
+    return () => {
+      ipcRenderer.removeListener(event, wrapped)
+    }
   },
 })

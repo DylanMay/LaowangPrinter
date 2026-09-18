@@ -122,6 +122,8 @@ describe('GrblController', () => {
     expect(blob).not.toMatch(/\bM3\b|\bM4\b/)
     await expect(controller.sendLine('M3 S200')).rejects.toMatchObject({ code: 'LASER_BLOCKED' })
     expect(port.written.map(asText).join('')).not.toMatch(/M3 S200/)
+    await controller.sendLine('M3 S200', 1500, true)
+    expect(port.written.map(asText).join('')).toMatch(/M3 S200/)
     await serial.disconnect()
   })
 })
