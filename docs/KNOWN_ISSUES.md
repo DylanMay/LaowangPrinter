@@ -5,7 +5,7 @@ MVP 1.0 冻结后只修阻塞缺陷，不擅自加功能。下一阶段见产品
 ## 阻塞现场验收的事项
 
 - **实机未在本仓库的云端环境验收。** 无 USB 激光机。Mock 已走通主路径；实机需按空载 → 低功率 → 标准的顺序现场做。
-- **未产出 Windows / macOS 安装包。** `npm run build` 只生成 `out/`。正式安装包、签名、serialport 按 Electron ABI 重建尚未接入 CI。
+- **安装包需在对应系统本机打。** 仓库已提供 `npm run dist:win` / `npm run dist:mac`，但无 CI、无代码签名。未签名的 Windows 包会过 SmartScreen，macOS 包会过 Gatekeeper。
 
 ## 非阻塞
 

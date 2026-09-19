@@ -803,9 +803,14 @@ npm run build
 
 `npm run build` 产出 `out/`，用 `npx electron .` 加载。
 
-Windows / macOS 安装包尚未接入仓库。建议后续用 electron-builder（NSIS / portable、`.app` / `.dmg`），并对 `serialport` 执行 `@electron/rebuild`。
+Windows / macOS 安装包用 `electron-builder.yml`：
 
-`LAOWANG_SERIAL=mock` 仅用于开发，默认关闭，不得进入生产主路径。
+```bash
+npm run dist:win   # 在 Windows 上：NSIS + portable
+npm run dist:mac   # 在 macOS 上：universal dmg + zip
+```
+
+`serialport` 会 `npmRebuild`，并 `asarUnpack`。不要设置 `LAOWANG_SERIAL=mock`。步骤详见 [README](../README.md)。
 
 实机测试、空载测试、第一次低功率雕刻见 [README](../README.md) 与 [验收对照](./ACCEPTANCE.md)。
 
