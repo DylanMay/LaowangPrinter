@@ -32,7 +32,7 @@ export function HomePage() {
 
       {connected && needsSizeSetup ? (
         <SizeSetup />
-      ) : (
+      ) : guideOpen ? null : (
         <DropZone />
       )}
 

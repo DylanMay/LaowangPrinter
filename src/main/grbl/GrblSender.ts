@@ -24,6 +24,7 @@ export class GrblSender {
   private index = 0
   private currentLine = ''
   private dryRun = false
+  private lowPowerTest = false
   private estimatedTime = 0
   private startedAt = 0
   private finishedAt = 0
@@ -61,6 +62,7 @@ export class GrblSender {
       totalLines: total,
       currentLine: this.currentLine,
       dryRun: this.dryRun,
+      lowPowerTest: this.lowPowerTest,
       errorMessage: this.errorMessage,
     }
   }
@@ -77,6 +79,7 @@ export class GrblSender {
     this.index = 0
     this.currentLine = ''
     this.dryRun = Boolean(options.dryRun)
+    this.lowPowerTest = Boolean(options.lowPowerTest)
     this.estimatedTime = Math.max(0, options.estimatedTime)
     this.startedAt = Date.now()
     this.finishedAt = 0

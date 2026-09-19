@@ -1,5 +1,5 @@
 import type { DeviceState, DeviceStatus, MachineState } from '@shared/types/state'
-import type { JobProgress } from '@shared/types/job'
+import type { JobProgress, WorkMode } from '@shared/types/job'
 import type { AdvancedSnapshot, JogFeed, JogStep } from '@shared/types/machine'
 import { GUIDE_STORAGE_KEY } from '@shared/guide'
 import type { EffectLevel, MaterialId } from '@shared/materials/MaterialPreset'
@@ -24,7 +24,6 @@ import { create } from 'zustand'
 
 type ConfirmKind = 'reset' | 'stop' | null
 type AppPage = 'home' | 'workspace' | 'job'
-type WorkMode = 'dry' | 'engrave'
 
 type AppStore = {
   page: AppPage
@@ -142,6 +141,7 @@ const IDLE_JOB: JobProgress = {
   totalLines: 0,
   currentLine: '',
   dryRun: false,
+  lowPowerTest: false,
 }
 
 export const useAppStore = create<AppStore>((set, get) => ({
@@ -373,6 +373,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
       thicknessMm,
       effect,
       dryRun: workMode === 'dry',
+      lowPower: workMode === 'low',
     })
     const safety = checkJobSafety({
       connected: deviceState === 'connected',
@@ -389,6 +390,8 @@ export const useAppStore = create<AppStore>((set, get) => ({
         lines: gcode!.lines,
         estimatedTime: gcode!.estimatedTime,
         dryRun: workMode === 'dry',
+        lowPowerTest: workMode === 'low',
+        confirmLowPower: workMode === 'low' ? confirmed : false,
         confirmed: workMode === 'dry' ? false : confirmed,
       })
       set({ jobProgress: progress, page: 'job', previewOpen: false, notice: null })

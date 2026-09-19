@@ -13,8 +13,11 @@ export type JobProgress = {
   totalLines: number
   currentLine: string
   dryRun: boolean
+  lowPowerTest?: boolean
   errorMessage?: string
 }
+
+export type WorkMode = 'dry' | 'low' | 'engrave'
 
 export type JobStartOptions = {
   lines: string[]

@@ -51,6 +51,7 @@ export function MachinePanel() {
     thicknessMm,
     effect,
     dryRun: workMode === 'dry',
+    lowPower: workMode === 'low',
   })
 
   useEffect(() => {

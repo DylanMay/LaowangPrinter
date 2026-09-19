@@ -1,4 +1,5 @@
 import { COPY } from '@shared/copy'
+import { runningLabel } from '../labels'
 import { useAppStore } from '../store/appStore'
 
 export function DeviceStatus() {
@@ -8,10 +9,11 @@ export function DeviceStatus() {
   const activity = useAppStore((state) => state.activity)
   const jobState = useAppStore((state) => state.jobProgress.state)
   const dryRun = useAppStore((state) => state.jobProgress.dryRun)
+  const lowPowerTest = useAppStore((state) => Boolean(state.jobProgress.lowPowerTest))
   const connected = deviceState === 'connected'
   const detecting = deviceState === 'detecting' || deviceState === 'connecting'
   const errored = deviceState === 'error'
-  const label = statusLabel(deviceState, machineState, activity, notice, jobState, dryRun)
+  const label = statusLabel(deviceState, machineState, activity, notice, jobState, dryRun, lowPowerTest)
 
   return (
     <div
@@ -38,8 +40,9 @@ function statusLabel(
   notice: string | null,
   jobState: string,
   dryRun: boolean,
+  lowPowerTest: boolean,
 ): string {
-  if (jobState === 'running') return dryRun ? COPY.dryRunning : COPY.engraving
+  if (jobState === 'running') return runningLabel(dryRun, lowPowerTest)
   if (jobState === 'paused') return COPY.paused
   if (activity === 'homing' || machineState === 'homing') return COPY.findingOrigin
   if (activity === 'resetting') return COPY.resetting

@@ -13,6 +13,7 @@ export function jobGcode(args: {
   thicknessMm: number
   effect: EffectLevel
   dryRun: boolean
+  lowPower?: boolean
 }): GCodeDocument | null {
   if (!args.imported || !args.placement || !args.workArea) return null
   return generateJobGcode({
@@ -22,7 +23,7 @@ export function jobGcode(args: {
     maxPower: args.maxPower,
     material: args.material,
     thicknessMm: args.thicknessMm,
-    effect: args.effect,
+    effect: args.lowPower ? 'light' : args.effect,
     dryRun: args.dryRun,
   })
 }
