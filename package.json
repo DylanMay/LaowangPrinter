@@ -9,6 +9,9 @@
   "scripts": {
     "dev": "electron-vite dev",
     "build": "npm run typecheck && electron-vite build",
+    "rebuild:native": "electron-builder install-app-deps",
+    "dist:win": "npm run build && electron-builder --win --x64 --config electron-builder.yml",
+    "dist:mac": "npm run build && electron-builder --mac --config electron-builder.yml",
     "preview": "electron-vite preview",
     "typecheck": "tsc --noEmit --pretty",
     "test": "vitest run",
@@ -29,6 +32,7 @@
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^5.2.0",
     "electron": "^44.4.2",
+    "electron-builder": "^26.15.3",
     "electron-vite": "^5.0.0",
     "eslint": "^10.10.0",
     "eslint-plugin-react-hooks": "^7.1.1",

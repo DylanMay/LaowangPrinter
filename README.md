@@ -38,33 +38,106 @@ LAOWANG_SERIAL=mock npx electron . --no-sandbox --disable-gpu
 
 Linux 无显示服务时需设置 `DISPLAY`。模拟设备会自动连接「我的雕刻机」，工作区域默认 300 × 200 mm。
 
-## 构建
+## 构建（开发运行）
 
 ```bash
 npm run build
 npx electron .
 ```
 
-产物在 `out/main`、`out/preload`、`out/renderer`。`npm run build` 会先跑 TypeScript 检查。
+产物在 `out/main`、`out/preload`、`out/renderer`。`npm run build` 会先跑 TypeScript 检查。这只是开发用的编译结果，还不是安装包。
 
-## Windows / macOS 打包
+## 如何构建 Windows / macOS 安装包
 
-本仓库尚未接入安装包 CI。`npm run build` 只生成可被 Electron 加载的渲染与主进程文件。
+用 [electron-builder](https://www.electron.build/)，配置在仓库根目录的 `electron-builder.yml`。
 
-后续建议用 [electron-builder](https://www.electron.build/)：
+**必须在目标系统上打包：** Windows 安装包在 Windows 上打，macOS 安装包在 macOS 上打。不要在 Linux 上交叉出正式包（`serialport` 原生模块对平台敏感）。
 
-| 平台 | 建议目标 | 注意 |
-| --- | --- | --- |
-| Windows | NSIS 安装包 + portable | 需在 Windows 或对应构建机打包 |
-| macOS | `.app` / `.dmg` | 未签名时 Gatekeeper 会拦截 |
+打包前不要设置 `LAOWANG_SERIAL=mock`。模拟雕刻机只用于开发，不能打进安装包。
 
-串口模块 `serialport` 必须按 Electron ABI 重建，例如：
+先装依赖并编译：
 
 ```bash
-npx @electron/rebuild -f -w serialport
+npm install
+npm run rebuild:native
+npm run build
 ```
 
-不要把 `LAOWANG_SERIAL=mock` 打进生产包。
+`rebuild:native` 会按当前 Electron 版本重建 `serialport`。配置里已经把 `serialport` / `@serialport` 从 asar 里拆出来，避免运行时找不到 `.node`。
+
+### Windows（在 Windows 上执行）
+
+需要：
+
+- Windows 10/11 x64
+- Node.js 22+ 与 npm
+- 首次打包如提示缺编译工具，安装 [Visual Studio Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/)，勾选「使用 C++ 的桌面开发」
+
+```bash
+git clone <本仓库>
+cd LaowangPrinter
+npm install
+npm run dist:win
+```
+
+`dist:win` = `npm run build` + `electron-builder --win --x64`。
+
+完成后看 `release/`：
+
+| 文件 | 用途 |
+| --- | --- |
+| `LaowangPrinter-0.1.0-win-x64-setup.exe` | NSIS 安装包，可改安装目录 |
+| `LaowangPrinter-0.1.0-win-x64-portable.exe` | 绿色版，不解压安装 |
+
+安装包默认会建桌面快捷方式「老王打印机」。未签名时 Windows SmartScreen 可能提示「未知发布者」，选「仍要运行」即可。
+
+### macOS（在 Mac 上执行）
+
+需要：
+
+- macOS（建议 13+）
+- Node.js 22+ 与 npm
+- Xcode Command Line Tools：`xcode-select --install`
+
+```bash
+git clone <本仓库>
+cd LaowangPrinter
+npm install
+npm run dist:mac
+```
+
+`dist:mac` = `npm run build` + `electron-builder --mac`，打 **universal**（Intel + Apple Silicon）的 `.dmg` 和 `.zip`。
+
+完成后看 `release/`：
+
+| 文件 | 用途 |
+| --- | --- |
+| `LaowangPrinter-0.1.0-mac-universal.dmg` | 拖入「应用程序」的安装镜像 |
+| `LaowangPrinter-0.1.0-mac-universal.zip` | 压缩的 `.app` |
+
+未签名、未公证时，第一次打开会被 Gatekeeper 拦住。用户可在「系统设置 → 隐私与安全性」里允许，或在终端执行：
+
+```bash
+xattr -cr /Applications/老王打印机.app
+```
+
+要上架或免拦截，需要 Apple Developer 证书，在打包机上配置后再加签名 / 公证。本仓库默认 `forceCodeSigning: false`，方便本机先打出能用的包。
+
+### 只编译、不打安装包
+
+已经 `npm run build` 之后，也可以分步：
+
+```bash
+npx electron-builder --win --x64 --config electron-builder.yml
+npx electron-builder --mac --config electron-builder.yml
+```
+
+### 打包时注意
+
+- 产物目录是 `release/`，已在 `.gitignore` 里。
+- `serialport` 必须是 `dependencies`（已经是），不能只放在 `devDependencies`，否则安装包里没有串口模块。
+- 若真机连不上，先确认打的是对应系统的包，再在本机重跑 `npm run rebuild:native` 后重新 `dist:win` / `dist:mac`。
+- 安装包体积会包含 Electron 运行时，大约几百 MB，属正常。
 
 ## 硬件连接
 
