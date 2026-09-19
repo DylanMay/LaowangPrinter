@@ -76,6 +76,14 @@ export class DeviceService {
     return this.grbl.config
   }
 
+  getController(): GrblController {
+    return this.grbl
+  }
+
+  getSerial(): SerialManager {
+    return this.serial
+  }
+
   async list(): Promise<PublicDevice[]> {
     const ports = await this.serial.listPorts()
     return likelyPorts(ports).map((port) => ({
