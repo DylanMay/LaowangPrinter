@@ -108,13 +108,10 @@ export class GrblSender {
     this.state = 'stopped'
     this.controller.abortPending(new Error('stopped'))
     this.releasePause()
-    await this.controller.halt()
-    if (this.serial.connected) {
-      await this.serial.write('M5\n')
-    }
     this.finishedAt = Date.now()
     this.currentLine = ''
     this.emitProgress()
+    await this.safeAbort()
     await this.loop
   }
 
@@ -138,18 +135,40 @@ export class GrblSender {
         this.currentLine = ''
         this.emitProgress()
       }
+      if (this.shouldStop()) return
+      if (this.state === 'paused') {
+        await this.waitWhilePaused()
+      }
+      if (this.shouldStop()) return
       if (this.state === 'running') {
-        this.state = 'completed'
-        this.finishedAt = Date.now()
-        this.currentLine = ''
-        const progress = this.getProgress()
-        this.emitter.emit('completed', progress)
-        this.emitProgress()
+        this.finishCompleted()
       }
     } catch (error) {
       if (this.state === 'stopped' || this.state === 'error') return
+      if (this.absorbAbort(error)) return
       this.fail(error)
     }
+  }
+
+  private finishCompleted(): void {
+    this.state = 'completed'
+    this.finishedAt = Date.now()
+    this.currentLine = ''
+    const progress = this.getProgress()
+    this.emitter.emit('completed', progress)
+    this.emitProgress()
+  }
+
+  private absorbAbort(error: unknown): boolean {
+    const message = error instanceof Error ? error.message : String(error)
+    if (message !== 'reset' && message !== 'stopped') return false
+    if (this.state !== 'running' && this.state !== 'paused') return true
+    this.state = 'stopped'
+    this.finishedAt = Date.now()
+    this.currentLine = ''
+    this.releasePause()
+    this.emitProgress()
+    return true
   }
 
   private shouldStop(): boolean {
@@ -162,10 +181,22 @@ export class GrblSender {
     this.finishedAt = Date.now()
     this.currentLine = ''
     this.errorMessage = formatUserError(toAppError(error))
+    this.controller.abortPending(new Error('error'))
     this.releasePause()
+    void this.safeAbort()
     const progress = this.getProgress()
     this.emitter.emit('error', progress)
     this.emitProgress()
+  }
+
+  private async safeAbort(): Promise<void> {
+    if (!this.serial.connected) return
+    await this.controller.halt()
+    try {
+      await this.controller.reset()
+    } catch {
+      /* already disconnected or not GRBL */
+    }
   }
 
   private handleDisconnect(): void {

@@ -34,7 +34,8 @@ export function MachinePanel() {
   const effect = useAppStore((state) => state.effect)
   const workMode = useAppStore((state) => state.workMode)
   const [viewCommands, setViewCommands] = useState(false)
-  const busy = Boolean(activity) || jobState === 'running' || jobState === 'paused'
+  const jobBusy = jobState === 'running' || jobState === 'paused'
+  const motionBusy = Boolean(activity) || jobBusy
   const gcode = jobGcode({
     imported,
     placement,
@@ -85,13 +86,13 @@ export function MachinePanel() {
             </div>
             <div className="mx-auto mt-5 grid w-[210px] grid-cols-3 gap-2">
               <span />
-              <JogButton label={COPY.jogUp} disabled={!connected || busy} onClick={() => void jog('Y', jogStep)} />
+              <JogButton label={COPY.jogUp} disabled={!connected || motionBusy} onClick={() => void jog('Y', jogStep)} />
               <span />
-              <JogButton label={COPY.jogLeft} disabled={!connected || busy} onClick={() => void jog('X', -jogStep)} />
-              <JogButton label={COPY.origin} disabled={!connected || busy} onClick={() => void home()} />
-              <JogButton label={COPY.jogRight} disabled={!connected || busy} onClick={() => void jog('X', jogStep)} />
+              <JogButton label={COPY.jogLeft} disabled={!connected || motionBusy} onClick={() => void jog('X', -jogStep)} />
+              <JogButton label={COPY.origin} disabled={!connected || motionBusy} onClick={() => void home()} />
+              <JogButton label={COPY.jogRight} disabled={!connected || motionBusy} onClick={() => void jog('X', jogStep)} />
               <span />
-              <JogButton label={COPY.jogDown} disabled={!connected || busy} onClick={() => void jog('Y', -jogStep)} />
+              <JogButton label={COPY.jogDown} disabled={!connected || motionBusy} onClick={() => void jog('Y', -jogStep)} />
               <span />
             </div>
             <div className="mt-5 flex justify-center gap-2">
@@ -119,7 +120,7 @@ export function MachinePanel() {
               </button>
               <button
                 type="button"
-                disabled={!connected || busy}
+                disabled={!connected}
                 onClick={() => askReset()}
                 className="h-10 rounded-xl border border-[#e8c9c4] px-4 text-sm font-semibold text-[#c4473a] disabled:opacity-40"
               >
@@ -127,7 +128,7 @@ export function MachinePanel() {
               </button>
               <button
                 type="button"
-                disabled={!connected || busy}
+                disabled={!connected}
                 onClick={() => askStop()}
                 className="h-10 rounded-xl border border-line px-4 text-sm font-semibold disabled:opacity-40"
               >

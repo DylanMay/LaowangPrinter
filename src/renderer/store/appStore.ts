@@ -179,6 +179,11 @@ export const useAppStore = create<AppStore>((set, get) => ({
       const status = await window.device.getStatus()
       mergeStatus(set, () => get().notice, status)
       await syncMaxPower(set)
+      if (window.job) {
+        const progress = await window.job.getProgress()
+        const live = progress.state === 'running' || progress.state === 'paused'
+        set({ jobProgress: progress, page: live ? 'job' : get().page })
+      }
     } catch {
       set({ notice: '应用未正确启动，请重启软件。' })
     }
@@ -275,12 +280,10 @@ export const useAppStore = create<AppStore>((set, get) => ({
   confirmAction: async () => {
     const kind = get().confirm
     set({ confirm: null })
-    if (kind === 'stop') {
-      const jobState = get().jobProgress.state
-      if (jobState === 'running' || jobState === 'paused') {
-        if (window.job) await window.job.stop()
-        return
-      }
+    const jobState = get().jobProgress.state
+    if ((kind === 'stop' || kind === 'reset') && (jobState === 'running' || jobState === 'paused')) {
+      if (window.job) await window.job.stop()
+      return
     }
     if (!window.machine) return
     if (kind === 'reset') {
@@ -292,7 +295,14 @@ export const useAppStore = create<AppStore>((set, get) => ({
       mergeStatus(set, () => get().notice, status)
     }
   },
-  goHome: () => set({ page: 'home' }),
+  goHome: () => {
+    const job = get().jobProgress.state
+    if (job === 'running' || job === 'paused') {
+      set({ page: 'job' })
+      return
+    }
+    set({ page: 'home' })
+  },
   goWorkspace: () => {
     if (get().imported) set({ page: 'workspace' })
   },
