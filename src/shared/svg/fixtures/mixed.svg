@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="40mm" height="20mm" viewBox="0 0 40 20">
+  <g>
+    <polyline points="0,18 8,10 16,18" fill="none" stroke="black" />
+    <polygon points="22,18 28,4 34,18" fill="none" stroke="black" />
+    <ellipse cx="10" cy="6" rx="6" ry="3" fill="none" stroke="black" />
+  </g>
+</svg>

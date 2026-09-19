@@ -790,25 +790,29 @@ npm run build
 
 ---
 
-## 19. 构建与打包（规划）
+## 19. 构建与打包
 
-MVP 开发期先保证：
+开发与验收：
 
 ```bash
 npm install
-npm run dev      # Electron + Vite 开发
+npm run dev
 npm test
 npm run build
 ```
 
-打包目标（实现阶段再落地配置，文档先约定）：
+`npm run build` 产出 `out/`，用 `npx electron .` 加载。
 
-- Windows：安装包 / 便携版
-- macOS：应用包
+Windows / macOS 安装包用 `electron-builder.yml`：
 
-串口原生模块需按 Electron ABI 重建（`electron-rebuild` 或等价方案）。
+```bash
+npm run dist:win   # 在 Windows 上：NSIS + portable
+npm run dist:mac   # 在 macOS 上：universal dmg + zip
+```
 
-实机测试、空载测试、第一次低功率雕刻的操作说明见开发计划「硬件验证」与产品文档安全原则。
+`serialport` 会 `npmRebuild`，并 `asarUnpack`。不要设置 `LAOWANG_SERIAL=mock`。步骤详见 [README](../README.md)。
+
+实机测试、空载测试、第一次低功率雕刻见 [README](../README.md) 与 [验收对照](./ACCEPTANCE.md)。
 
 ---
 

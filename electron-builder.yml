@@ -1,0 +1,46 @@
+appId: com.laowang.printer
+productName: 老王打印机
+copyright: Copyright © 老王打印机
+directories:
+  output: release
+  buildResources: build
+files:
+  - out/**/*
+  - package.json
+asar: true
+asarUnpack:
+  - '**/node_modules/serialport/**'
+  - '**/node_modules/@serialport/**'
+npmRebuild: true
+forceCodeSigning: false
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+    - target: portable
+      arch:
+        - x64
+nsis:
+  artifactName: LaowangPrinter-${version}-win-${arch}-setup.${ext}
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: always
+  shortcutName: 老王打印机
+  uninstallDisplayName: 老王打印机
+portable:
+  artifactName: LaowangPrinter-${version}-win-${arch}-portable.${ext}
+mac:
+  artifactName: LaowangPrinter-${version}-mac-${arch}.${ext}
+  category: public.app-category.graphics-design
+  hardenedRuntime: true
+  gatekeeperAssess: false
+  target:
+    - target: dmg
+      arch:
+        - universal
+    - target: zip
+      arch:
+        - universal
+dmg:
+  artifactName: LaowangPrinter-${version}-mac-${arch}.${ext}
