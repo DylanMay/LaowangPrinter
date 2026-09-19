@@ -24,6 +24,7 @@ export function registerIpcHandlers(
   ipcMain.handle('device:disconnect', () => device.disconnect())
   ipcMain.handle('device:getStatus', () => device.getStatus())
   ipcMain.handle('machine:getConfig', () => device.getConfig())
+  ipcMain.handle('machine:getAdvanced', () => device.getAdvanced())
   ipcMain.handle('machine:setSize', (_event, widthMm: number, heightMm: number) =>
     device.setSize(widthMm, heightMm),
   )

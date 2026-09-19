@@ -1,5 +1,5 @@
 import { formatUserError, toAppError, USER_ERRORS } from '@shared/errors/appError'
-import type { MachineConfig } from '@shared/types/machine'
+import type { AdvancedSnapshot, MachineConfig } from '@shared/types/machine'
 import type { DeviceState, DeviceStatus, PublicDevice } from '@shared/types/state'
 import { GrblController } from '../grbl/GrblController'
 import { SerialManager } from '../serial/SerialManager'
@@ -74,6 +74,21 @@ export class DeviceService {
 
   getConfig(): MachineConfig | null {
     return this.grbl.config
+  }
+
+  getAdvanced(): AdvancedSnapshot {
+    const config = this.grbl.config
+    return {
+      portPath: this.serial.connectedPath,
+      baudRate: this.serial.baudRate,
+      firmware: config?.firmware ?? '',
+      version: config?.grblVersion ?? '',
+      widthMm: config?.widthMm ?? null,
+      heightMm: config?.heightMm ?? null,
+      maxPower: config?.maxPower ?? 1000,
+      laserMode: Boolean(config?.laserMode),
+      serialLog: this.serial.getLog(),
+    }
   }
 
   getController(): GrblController {

@@ -28,6 +28,7 @@ describe('Electron 安全配置', () => {
     expect(source).toContain("'machine'")
     expect(source).toContain("'file'")
     expect(source).toContain("'job'")
+    expect(source).toContain('machine:getAdvanced')
     expect(source).not.toMatch(/exposeInMainWorld\(\s*['"]ipcRenderer['"]/)
     expect(source).not.toMatch(/exposeInMainWorld\([^)]*ipcRenderer/)
   })

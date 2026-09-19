@@ -1,11 +1,11 @@
 import { COPY } from '@shared/copy'
 import { formatDuration } from '@shared/gcode/GCodeEstimator'
 import { formatSizeMm } from '@shared/types/workspace'
-import { PreviewCanvas } from '../components/PreviewCanvas'
+import { PreviewCanvas } from './PreviewCanvas'
 import { jobGcode } from '../gcode/jobGcode'
 import { useAppStore } from '../store/appStore'
 
-export function PreviewPage() {
+export function PreviewOverlay() {
   const imported = useAppStore((state) => state.imported)
   const placement = useAppStore((state) => state.placement)
   const workArea = useAppStore((state) => state.workArea)
@@ -33,7 +33,7 @@ export function PreviewPage() {
   const startLabel = workMode === 'dry' ? COPY.startDryRun : COPY.startEngrave
 
   return (
-    <div className="flex min-h-0 flex-1">
+    <div className="absolute inset-0 z-10 flex bg-paper">
       <section className="flex min-w-0 flex-1 flex-col px-6 pb-4 pt-4">
         <PreviewCanvas />
         <p className="mt-2 text-center text-[12px] text-muted">

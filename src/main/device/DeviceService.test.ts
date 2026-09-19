@@ -42,6 +42,21 @@ describe('DeviceService', () => {
     expect(JSON.stringify(status)).not.toMatch(/COM3|115200|Grbl 1\.1/i)
   })
 
+  it('高级快照提供接口、速率、固件和通信记录', async () => {
+    const service = track(new DeviceService(new SerialManager(createMockEngraverBackend())))
+    await service.connect()
+    const advanced = service.getAdvanced()
+    expect(advanced.portPath).toBe('mock://engraver')
+    expect(advanced.baudRate).toBe(115200)
+    expect(advanced.version).toBe('1.1h')
+    expect(advanced.firmware).toMatch(/1\.1h/)
+    expect(advanced.maxPower).toBe(1000)
+    expect(advanced.laserMode).toBe(true)
+    expect(advanced.widthMm).toBe(300)
+    expect(advanced.serialLog.length).toBeGreaterThan(0)
+    expect(JSON.stringify(service.getStatus())).not.toMatch(/COM3|115200|Grbl 1\.1/i)
+  })
+
   it('读不到尺寸时进入最小设置引导', async () => {
     const service = track(
       new DeviceService(new SerialManager(createMockEngraverBackend({ omitTravel: true }))),

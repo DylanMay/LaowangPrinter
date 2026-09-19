@@ -1,7 +1,8 @@
 import { COPY } from '@shared/copy'
 import type { JogFeed } from '@shared/types/machine'
 import { JOG_FEEDS, JOG_STEPS } from '@shared/types/machine'
-import { useState } from 'react'
+import { formatSizeMm } from '@shared/types/workspace'
+import { useEffect, useState } from 'react'
 import { jobGcode } from '../gcode/jobGcode'
 import { useAppStore } from '../store/appStore'
 
@@ -11,6 +12,8 @@ const SPEED_LABELS: Record<JogFeed, string> = {
   1000: COPY.speedFast,
   3000: COPY.speedFaster,
 }
+
+type PanelView = 'settings' | 'machine' | 'commands' | 'log'
 
 export function MachinePanel() {
   const connected = useAppStore((state) => state.deviceState === 'connected')
@@ -23,6 +26,7 @@ export function MachinePanel() {
   const home = useAppStore((state) => state.home)
   const activity = useAppStore((state) => state.activity)
   const jobState = useAppStore((state) => state.jobProgress.state)
+  const jobProgress = useAppStore((state) => state.jobProgress)
   const askReset = useAppStore((state) => state.askReset)
   const askStop = useAppStore((state) => state.askStop)
   const imported = useAppStore((state) => state.imported)
@@ -33,7 +37,9 @@ export function MachinePanel() {
   const thicknessMm = useAppStore((state) => state.thicknessMm)
   const effect = useAppStore((state) => state.effect)
   const workMode = useAppStore((state) => state.workMode)
-  const [viewCommands, setViewCommands] = useState(false)
+  const advanced = useAppStore((state) => state.advanced)
+  const loadAdvanced = useAppStore((state) => state.loadAdvanced)
+  const [view, setView] = useState<PanelView>('settings')
   const jobBusy = jobState === 'running' || jobState === 'paused'
   const motionBusy = Boolean(activity) || jobBusy
   const gcode = jobGcode({
@@ -47,10 +53,18 @@ export function MachinePanel() {
     dryRun: workMode === 'dry',
   })
 
+  useEffect(() => {
+    void loadAdvanced()
+    const timer = window.setInterval(() => {
+      void loadAdvanced()
+    }, 1000)
+    return () => window.clearInterval(timer)
+  }, [loadAdvanced])
+
   return (
     <div className="absolute inset-0 z-10 flex items-center justify-center bg-[rgba(28,24,20,0.35)] px-6">
-      <div className="w-[420px] max-w-full rounded-3xl border border-line bg-surface p-6 shadow-[0_12px_40px_rgba(28,24,20,0.08)]">
-        {viewCommands ? (
+      <div className="max-h-[680px] w-[520px] max-w-full overflow-auto rounded-3xl border border-line bg-surface p-6 shadow-[0_12px_40px_rgba(28,24,20,0.08)]">
+        {view === 'commands' ? (
           <div className="flex flex-col gap-3">
             <h2 className="text-center text-xl font-semibold">{COPY.pathCommandsTitle}</h2>
             <p className="text-center text-[13px] text-muted">{COPY.pathCommandsHint}</p>
@@ -59,13 +73,28 @@ export function MachinePanel() {
             </pre>
             <button
               type="button"
-              onClick={() => setViewCommands(false)}
+              onClick={() => setView('settings')}
               className="h-10 self-center rounded-xl bg-ink px-4 text-sm font-semibold text-white"
             >
               {COPY.done}
             </button>
           </div>
-        ) : (
+        ) : view === 'log' ? (
+          <div className="flex flex-col gap-3">
+            <h2 className="text-center text-xl font-semibold">{COPY.serialLogTitle}</h2>
+            <p className="text-center text-[13px] text-muted">{COPY.serialLogHint}</p>
+            <pre className="max-h-64 overflow-auto rounded-xl bg-paper p-3 font-mono text-[11px] leading-relaxed text-ink">
+              {advanced?.serialLog.length ? advanced.serialLog.join('\n') : COPY.serialLogEmpty}
+            </pre>
+            <button
+              type="button"
+              onClick={() => setView('settings')}
+              className="h-10 self-center rounded-xl bg-ink px-4 text-sm font-semibold text-white"
+            >
+              {COPY.done}
+            </button>
+          </div>
+        ) : view === 'machine' ? (
           <>
             <h2 className="text-center text-xl font-semibold">{COPY.machineControl}</h2>
             <p className="mt-2 text-center text-[13px] text-muted">{COPY.machineLead}</p>
@@ -113,13 +142,6 @@ export function MachinePanel() {
             <div className="mt-6 flex flex-wrap justify-center gap-2.5">
               <button
                 type="button"
-                onClick={() => setViewCommands(true)}
-                className="h-10 rounded-xl border border-line px-4 text-sm font-semibold"
-              >
-                {COPY.viewPathCommands}
-              </button>
-              <button
-                type="button"
                 disabled={!connected}
                 onClick={() => askReset()}
                 className="h-10 rounded-xl border border-[#e8c9c4] px-4 text-sm font-semibold text-[#c4473a] disabled:opacity-40"
@@ -136,16 +158,129 @@ export function MachinePanel() {
               </button>
               <button
                 type="button"
-                onClick={() => closePanel()}
+                onClick={() => setView('settings')}
                 className="h-10 rounded-xl bg-ink px-4 text-sm font-semibold text-white"
               >
                 {COPY.done}
               </button>
             </div>
           </>
+        ) : (
+          <SettingsView
+            connected={connected}
+            workArea={workArea}
+            maxPower={maxPower}
+            jobBusy={jobBusy}
+            sent={jobProgress.sentLines}
+            total={jobProgress.totalLines}
+            currentLine={jobProgress.currentLine}
+            onCommands={() => setView('commands')}
+            onLog={() => setView('log')}
+            onMachine={() => setView('machine')}
+            onDone={closePanel}
+          />
         )}
       </div>
     </div>
+  )
+}
+
+function SettingsView({
+  connected,
+  workArea,
+  maxPower,
+  jobBusy,
+  sent,
+  total,
+  currentLine,
+  onCommands,
+  onLog,
+  onMachine,
+  onDone,
+}: {
+  connected: boolean
+  workArea: { widthMm: number; heightMm: number } | null
+  maxPower: number
+  jobBusy: boolean
+  sent: number
+  total: number
+  currentLine: string
+  onCommands: () => void
+  onLog: () => void
+  onMachine: () => void
+  onDone: () => void
+}) {
+  const advanced = useAppStore((state) => state.advanced)
+  const deviceName = useAppStore((state) => state.deviceName)
+  const size = workArea
+    ? formatSizeMm(workArea.widthMm, workArea.heightMm)
+    : advanced?.widthMm && advanced.heightMm
+      ? formatSizeMm(advanced.widthMm, advanced.heightMm)
+      : COPY.unknownValue
+
+  return (
+    <>
+      <h2 className="text-center text-xl font-semibold">{COPY.advancedTitle}</h2>
+      <p className="mt-2 text-center text-[13px] text-muted">{COPY.settingsBody}</p>
+      <dl className="mt-5 grid grid-cols-[120px_1fr] gap-x-4 gap-y-2 text-[13px]">
+        <dt className="text-muted">{COPY.myMachine}</dt>
+        <dd className="font-mono text-[12px]">{connected ? deviceName ?? COPY.myMachine : COPY.unknownValue}</dd>
+        <dt className="text-muted">{COPY.advancedPort}</dt>
+        <dd className="font-mono text-[12px]">{advanced?.portPath || COPY.unknownValue}</dd>
+        <dt className="text-muted">{COPY.advancedBaud}</dt>
+        <dd className="font-mono text-[12px]">{advanced ? String(advanced.baudRate) : COPY.unknownValue}</dd>
+        <dt className="text-muted">{COPY.advancedFirmware}</dt>
+        <dd className="font-mono text-[12px]">{advanced?.firmware || COPY.unknownValue}</dd>
+        <dt className="text-muted">{COPY.advancedWorkArea}</dt>
+        <dd className="font-mono text-[12px]">{size}</dd>
+        <dt className="text-muted">{COPY.advancedMaxPower}</dt>
+        <dd className="font-mono text-[12px]">{advanced?.maxPower ?? maxPower}</dd>
+        <dt className="text-muted">{COPY.advancedLaserMode}</dt>
+        <dd className="font-mono text-[12px]">
+          {advanced ? (advanced.laserMode ? COPY.laserModeOn : COPY.laserModeOff) : COPY.unknownValue}
+        </dd>
+        {jobBusy || currentLine ? (
+          <>
+            <dt className="text-muted">{COPY.stepLabel}</dt>
+            <dd className="font-mono text-[12px]">
+              {sent} / {total}
+            </dd>
+            <dt className="text-muted">{COPY.advancedCurrent}</dt>
+            <dd className="font-mono text-[12px]">{currentLine || COPY.unknownValue}</dd>
+          </>
+        ) : null}
+      </dl>
+      <div className="mt-6 flex flex-wrap justify-center gap-2.5">
+        <button
+          type="button"
+          onClick={onCommands}
+          className="h-10 rounded-xl border border-line px-4 text-sm font-semibold"
+        >
+          {COPY.viewPathCommands}
+        </button>
+        <button
+          type="button"
+          onClick={onLog}
+          className="h-10 rounded-xl border border-line px-4 text-sm font-semibold"
+        >
+          {COPY.serialLogTitle}
+        </button>
+        <button
+          type="button"
+          onClick={onMachine}
+          className="h-10 rounded-xl border border-line px-4 text-sm font-semibold"
+        >
+          {COPY.machineControl}
+        </button>
+        <button
+          type="button"
+          onClick={onDone}
+          className="h-10 rounded-xl bg-ink px-4 text-sm font-semibold text-white"
+        >
+          {COPY.done}
+        </button>
+      </div>
+    </>
   )
 }
 

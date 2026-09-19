@@ -4,6 +4,7 @@ import { formatDuration } from '@shared/gcode/GCodeEstimator'
 import { formatSizeMm } from '@shared/types/workspace'
 import { useState } from 'react'
 import { useAppStore } from '../store/appStore'
+import { PreviewOverlay } from '../components/PreviewOverlay'
 import { WorkspaceCanvas } from '../components/WorkspaceCanvas'
 import { jobGcode } from '../gcode/jobGcode'
 
@@ -15,10 +16,10 @@ export function WorkspacePage() {
   const material = useAppStore((state) => state.material)
   const thicknessMm = useAppStore((state) => state.thicknessMm)
   const effect = useAppStore((state) => state.effect)
-  const openSvg = useAppStore((state) => state.openSvg)
   const autoShrinkPattern = useAppStore((state) => state.autoShrinkPattern)
   const goJob = useAppStore((state) => state.goJob)
   const goPreview = useAppStore((state) => state.goPreview)
+  const previewOpen = useAppStore((state) => state.previewOpen)
   const maxPower = useAppStore((state) => state.maxPower)
   const workMode = useAppStore((state) => state.workMode)
   const connected = useAppStore((state) => state.deviceState === 'connected')
@@ -40,7 +41,7 @@ export function WorkspacePage() {
   })
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
+    <div className="relative flex min-h-0 flex-1 flex-col">
       <div className="flex min-h-0 flex-1">
         <section className="flex min-w-0 flex-1 flex-col px-6 pb-3 pt-4">
           {tooLarge ? (
@@ -91,13 +92,6 @@ export function WorkspacePage() {
         <div className="ml-auto flex items-center gap-2">
           <button
             type="button"
-            onClick={() => void openSvg()}
-            className="h-10 rounded-xl border border-line bg-surface px-4 text-sm font-semibold"
-          >
-            {COPY.selectAgain}
-          </button>
-          <button
-            type="button"
             disabled={!startOk}
             onClick={goPreview}
             className="h-10 rounded-xl border border-line bg-surface px-4 text-sm font-semibold disabled:opacity-40"
@@ -114,6 +108,7 @@ export function WorkspacePage() {
           </button>
         </div>
       </footer>
+      {previewOpen ? <PreviewOverlay /> : null}
     </div>
   )
 }

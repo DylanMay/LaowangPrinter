@@ -28,3 +28,15 @@ export type JogParams = {
   distanceMm: number
   feed: JogFeed
 }
+
+export type AdvancedSnapshot = {
+  portPath: string | null
+  baudRate: number
+  firmware: string
+  version: string
+  widthMm: number | null
+  heightMm: number | null
+  maxPower: number
+  laserMode: boolean
+  serialLog: string[]
+}

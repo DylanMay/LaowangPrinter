@@ -1,6 +1,7 @@
 import type { DeviceState, DeviceStatus, MachineState } from '@shared/types/state'
 import type { JobProgress } from '@shared/types/job'
-import type { JogFeed, JogStep } from '@shared/types/machine'
+import type { AdvancedSnapshot, JogFeed, JogStep } from '@shared/types/machine'
+import { GUIDE_STORAGE_KEY } from '@shared/guide'
 import type { EffectLevel, MaterialId } from '@shared/materials/MaterialPreset'
 import type { OpenSvgResult } from '@shared/types/svg'
 import type { Placement, WorkArea } from '@shared/types/workspace'
@@ -22,7 +23,7 @@ import { jobGcode } from '../gcode/jobGcode'
 import { create } from 'zustand'
 
 type ConfirmKind = 'reset' | 'stop' | null
-type AppPage = 'home' | 'workspace' | 'preview' | 'job'
+type AppPage = 'home' | 'workspace' | 'job'
 type WorkMode = 'dry' | 'engrave'
 
 type AppStore = {
@@ -37,6 +38,7 @@ type AppStore = {
   workArea: WorkArea | null
   maxPower: number
   panelOpen: boolean
+  previewOpen: boolean
   confirm: ConfirmKind
   jogStep: JogStep
   jogFeed: JogFeed
@@ -49,6 +51,10 @@ type AppStore = {
   effect: EffectLevel
   workMode: WorkMode
   jobProgress: JobProgress
+  guideOpen: boolean
+  guideStep: number
+  guideCompleted: boolean
+  advanced: AdvancedSnapshot | null
   hydrate: () => Promise<void>
   requestConnect: () => Promise<void>
   submitSize: (widthMm: number, heightMm: number) => Promise<void>
@@ -57,6 +63,7 @@ type AppStore = {
   showNotice: (message: string) => void
   openPanel: () => void
   closePanel: () => void
+  loadAdvanced: () => Promise<void>
   setJogStep: (step: JogStep) => void
   setJogFeed: (feed: JogFeed) => void
   jog: (axis: 'X' | 'Y', distanceMm: number) => Promise<void>
@@ -70,10 +77,12 @@ type AppStore = {
   goWorkspace: () => void
   goPreview: () => void
   goJob: () => void
-  startJob: () => Promise<void>
+  startJob: (confirmed?: boolean) => Promise<void>
   pauseJob: () => Promise<void>
   resumeJob: () => Promise<void>
   resetJob: () => void
+  advanceGuide: () => Promise<void>
+  completeGuide: () => void
   setLockRatio: (lockRatio: boolean) => void
   setWidth: (widthMm: number) => void
   setHeight: (heightMm: number) => void
@@ -147,6 +156,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   workArea: null,
   maxPower: 1000,
   panelOpen: false,
+  previewOpen: false,
   confirm: null,
   jogStep: 1,
   jogFeed: 500,
@@ -159,6 +169,10 @@ export const useAppStore = create<AppStore>((set, get) => ({
   effect: 'standard',
   workMode: 'dry',
   jobProgress: IDLE_JOB,
+  guideOpen: false,
+  guideStep: 0,
+  guideCompleted: true,
+  advanced: null,
   hydrate: async () => {
     if (!window.device) {
       set({ notice: '应用未正确启动，请重启软件。' })
@@ -179,6 +193,12 @@ export const useAppStore = create<AppStore>((set, get) => ({
       const status = await window.device.getStatus()
       mergeStatus(set, () => get().notice, status)
       await syncMaxPower(set)
+      const guideCompleted = readGuideCompleted()
+      set({
+        guideCompleted,
+        guideOpen: !guideCompleted,
+        guideStep: 0,
+      })
       if (window.job) {
         const progress = await window.job.getProgress()
         const live = progress.state === 'running' || progress.state === 'paused'
@@ -251,8 +271,20 @@ export const useAppStore = create<AppStore>((set, get) => ({
     }
   },
   showNotice: (message) => set({ notice: message }),
-  openPanel: () => set({ panelOpen: true, confirm: null }),
+  openPanel: () => {
+    set({ panelOpen: true, confirm: null })
+    void get().loadAdvanced()
+  },
   closePanel: () => set({ panelOpen: false, confirm: null }),
+  loadAdvanced: async () => {
+    if (!window.machine?.getAdvanced) return
+    try {
+      const advanced = await window.machine.getAdvanced()
+      set({ advanced })
+    } catch {
+      set({ advanced: null })
+    }
+  },
   setJogStep: (jogStep) => set({ jogStep }),
   setJogFeed: (jogFeed) => set({ jogFeed }),
   jog: async (axis, distanceMm) => {
@@ -298,27 +330,35 @@ export const useAppStore = create<AppStore>((set, get) => ({
   goHome: () => {
     const job = get().jobProgress.state
     if (job === 'running' || job === 'paused') {
-      set({ page: 'job' })
+      set({ page: 'job', previewOpen: false })
       return
     }
-    set({ page: 'home' })
+    set({ page: 'home', previewOpen: false })
   },
   goWorkspace: () => {
-    if (get().imported) set({ page: 'workspace' })
+    if (get().imported) set({ page: 'workspace', previewOpen: false })
   },
   goPreview: () => {
     const { placement, workArea, deviceState, imported } = get()
     if (!imported || !placement || !workArea || deviceState !== 'connected') return
     if (!canStart(placement, workArea)) return
-    set({ page: 'preview', notice: null })
+    set({ page: 'workspace', previewOpen: true, notice: null })
   },
   goJob: () => {
     const { placement, workArea, deviceState } = get()
     if (!placement || !workArea || deviceState !== 'connected') return
     if (!canStart(placement, workArea)) return
-    set({ page: 'job', notice: null, jobProgress: get().jobProgress.state === 'running' || get().jobProgress.state === 'paused' ? get().jobProgress : IDLE_JOB })
+    set({
+      page: 'job',
+      previewOpen: false,
+      notice: null,
+      jobProgress:
+        get().jobProgress.state === 'running' || get().jobProgress.state === 'paused'
+          ? get().jobProgress
+          : IDLE_JOB,
+    })
   },
-  startJob: async () => {
+  startJob: async (confirmed = false) => {
     if (!window.job) {
       set({ notice: COPY.cannotStart })
       return
@@ -349,8 +389,9 @@ export const useAppStore = create<AppStore>((set, get) => ({
         lines: gcode!.lines,
         estimatedTime: gcode!.estimatedTime,
         dryRun: workMode === 'dry',
+        confirmed: workMode === 'dry' ? false : confirmed,
       })
-      set({ jobProgress: progress, page: 'job', notice: null })
+      set({ jobProgress: progress, page: 'job', previewOpen: false, notice: null })
     } catch (error) {
       set({ notice: error instanceof Error ? error.message : COPY.cannotStart })
     }
@@ -363,7 +404,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
     if (!window.job) return
     await window.job.resume()
   },
-  resetJob: () => set({ jobProgress: IDLE_JOB, page: 'job', notice: null }),
+  resetJob: () => set({ jobProgress: IDLE_JOB, page: 'job', previewOpen: false, notice: null }),
   setLockRatio: (lockRatio) => set({ lockRatio }),
   setWidth: (widthMm) => {
     const { placement, lockRatio } = get()
@@ -413,6 +454,46 @@ export const useAppStore = create<AppStore>((set, get) => ({
   setThickness: (thicknessMm) => set({ thicknessMm }),
   setEffect: (effect) => set({ effect }),
   setWorkMode: (workMode) => set({ workMode }),
+  advanceGuide: async () => {
+    const { guideStep, deviceState, moveTested, activity } = get()
+    if (activity) return
+    if (guideStep === 0) {
+      if (deviceState !== 'connected') {
+        await get().requestConnect()
+      }
+      if (get().deviceState === 'connected') set({ guideStep: 1 })
+      return
+    }
+    if (guideStep === 1) {
+      if (deviceState !== 'connected') {
+        await get().requestConnect()
+        return
+      }
+      set({ guideStep: 2 })
+      return
+    }
+    if (guideStep === 2) {
+      if (!moveTested) {
+        await get().testMove()
+      }
+      if (get().moveTested) set({ guideStep: 3 })
+      return
+    }
+    if (guideStep === 3) {
+      set({ guideStep: 4 })
+      return
+    }
+    get().completeGuide()
+  },
+  completeGuide: () => {
+    writeGuideCompleted()
+    set({
+      guideOpen: false,
+      guideCompleted: true,
+      workMode: 'dry',
+      notice: COPY.guideReady,
+    })
+  },
 }))
 
 function fileErrorMessage(error: unknown): string {
@@ -438,5 +519,21 @@ async function syncMaxPower(set: (partial: Partial<AppStore>) => void): Promise<
     if (config?.maxPower) set({ maxPower: config.maxPower })
   } catch {
     set({ maxPower: 1000 })
+  }
+}
+
+function readGuideCompleted(): boolean {
+  try {
+    return window.localStorage.getItem(GUIDE_STORAGE_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
+function writeGuideCompleted(): void {
+  try {
+    window.localStorage.setItem(GUIDE_STORAGE_KEY, '1')
+  } catch {
+    /* ignore */
   }
 }

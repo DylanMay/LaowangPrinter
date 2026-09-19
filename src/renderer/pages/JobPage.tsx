@@ -56,8 +56,6 @@ export function JobPage() {
             dry={dry}
             percent={job.percent}
             remaining={job.remainingSeconds}
-            sent={job.sentLines}
-            total={job.totalLines}
             onPause={() => void pauseJob()}
             onStop={askStop}
           />
@@ -132,7 +130,7 @@ export function JobPage() {
               <button
                 type="button"
                 disabled={!canConfirmStart}
-                onClick={() => void startJob()}
+                onClick={() => void startJob(true)}
                 className="h-11 rounded-xl bg-ink px-4 text-sm font-semibold text-white disabled:bg-[#ddd6cb] disabled:text-[#8a8278]"
               >
                 {dry ? COPY.startDryRun : COPY.startEngrave}
@@ -149,16 +147,12 @@ function RunningBar({
   dry,
   percent,
   remaining,
-  sent,
-  total,
   onPause,
   onStop,
 }: {
   dry: boolean
   percent: number
   remaining: number
-  sent: number
-  total: number
   onPause: () => void
   onStop: () => void
 }) {
@@ -173,9 +167,6 @@ function RunningBar({
       <div className="h-2 overflow-hidden rounded-full bg-paper">
         <div className="h-full rounded-full bg-brand" style={{ width: `${percent}%` }} />
       </div>
-      <p className="text-[12px] text-muted">
-        {COPY.stepLabel} {sent} / {total}
-      </p>
       <div className="flex justify-end gap-2">
         <button
           type="button"
