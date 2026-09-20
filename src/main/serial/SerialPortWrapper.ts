@@ -1,6 +1,11 @@
 import { SerialPort } from 'serialport'
 import { PortBusyError } from './errors'
+import { toCalloutPath } from './portFilter'
 import type { BaudRate, SerialBackend, SerialPortInfo, SerialPortLike } from './types'
+
+const LIST_TIMEOUT_MS = 3000
+const OPEN_TIMEOUT_MS = 4000
+const SETTLE_MS = 400
 
 export class SerialPortWrapper implements SerialPortLike {
   constructor(private readonly port: SerialPort) {}
@@ -60,28 +65,55 @@ export class SerialPortWrapper implements SerialPortLike {
 export class NodeSerialBackend implements SerialBackend {
   async list(): Promise<SerialPortInfo[]> {
     try {
-      const ports = await withTimeout(SerialPort.list(), 1500)
+      const ports = await withTimeout(SerialPort.list(), LIST_TIMEOUT_MS)
       return ports.map((port) => ({
         path: port.path,
         manufacturer: port.manufacturer,
         serialNumber: port.serialNumber ?? undefined,
+        vendorId: port.vendorId ?? undefined,
+        productId: port.productId ?? undefined,
       }))
-    } catch {
+    } catch (error) {
+      console.error('[laowang] serial list failed', error)
       return []
     }
   }
 
   async open(path: string, baudRate: BaudRate): Promise<SerialPortLike> {
-    const native = new SerialPort({ path, baudRate, autoOpen: false })
+    const resolved = toCalloutPath(path)
+    const native = new SerialPort({
+      path: resolved,
+      baudRate,
+      autoOpen: false,
+      rtscts: false,
+      hupcl: false,
+    })
     const wrapper = new SerialPortWrapper(native)
     try {
-      await withTimeout(wrapper.open(), 1500)
+      await withTimeout(wrapper.open(), OPEN_TIMEOUT_MS)
+      // ESP32 / CH340 在 macOS 上默认 DTR/RTS 会把板子按在复位或下载模式，看起来像“插上没反应”。
+      await releaseControlLines(native)
+      await sleep(SETTLE_MS)
       return wrapper
     } catch (error) {
       await closeQuietly(native)
       throw error
     }
   }
+}
+
+function releaseControlLines(port: SerialPort): Promise<void> {
+  return new Promise((resolve) => {
+    if (typeof port.set !== 'function') {
+      resolve()
+      return
+    }
+    port.set({ dtr: false, rts: false }, () => resolve())
+  })
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {

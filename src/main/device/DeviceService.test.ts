@@ -97,6 +97,16 @@ describe('DeviceService', () => {
     expect(service.getStatus().displayName).toBe('我的雕刻机')
   })
 
+  it('第一个端口占用时继续试下一台', async () => {
+    const backend = createMockEngraverBackend()
+    backend.backend.ports.unshift({ path: 'mock://busy' })
+    backend.backend.busyPaths.add('mock://busy')
+    const service = track(new DeviceService(new SerialManager(backend)))
+    const status = await service.connect()
+    expect(status.state).toBe('connected')
+    expect(status.displayName).toBe('我的雕刻机')
+  })
+
   it('USB 拔出后进入断开错误', async () => {
     const backend = createMockEngraverBackend()
     const manager = new SerialManager(backend)

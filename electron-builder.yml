@@ -11,6 +11,7 @@ asar: true
 asarUnpack:
   - '**/node_modules/serialport/**'
   - '**/node_modules/@serialport/**'
+  - '**/*.node'
 npmRebuild: true
 forceCodeSigning: false
 win:
@@ -35,12 +36,10 @@ mac:
   category: public.app-category.graphics-design
   hardenedRuntime: true
   gatekeeperAssess: false
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.plist
   target:
-    - target: dmg
-      arch:
-        - universal
-    - target: zip
-      arch:
-        - universal
+    - dmg
+    - zip
 dmg:
   artifactName: LaowangPrinter-${version}-mac-${arch}.${ext}
