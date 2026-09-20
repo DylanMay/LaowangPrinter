@@ -106,14 +106,14 @@ npm install
 npm run dist:mac
 ```
 
-`dist:mac` = `npm run build` + `electron-builder --mac`，打 **universal**（Intel + Apple Silicon）的 `.dmg` 和 `.zip`。
+`dist:mac` = `npm run build` + `electron-builder --mac`，按**当前这台 Mac 的架构**打包（Apple Silicon 为 `arm64`，Intel 为 `x64`）。不要打 universal：`serialport` 原生模块在合并二进制里经常缺一边，表现就是插上雕刻机没反应。
 
 完成后看 `release/`：
 
 | 文件 | 用途 |
 | --- | --- |
-| `LaowangPrinter-0.1.0-mac-universal.dmg` | 拖入「应用程序」的安装镜像 |
-| `LaowangPrinter-0.1.0-mac-universal.zip` | 压缩的 `.app` |
+| `LaowangPrinter-0.1.0-mac-arm64.dmg`（或 `-x64.dmg`） | 拖入「应用程序」的安装镜像 |
+| `LaowangPrinter-0.1.0-mac-arm64.zip`（或 `-x64.zip`） | 压缩的 `.app` |
 
 未签名、未公证时，第一次打开会被 Gatekeeper 拦住。用户可在「系统设置 → 隐私与安全性」里允许，或在终端执行：
 
@@ -142,13 +142,28 @@ npx electron-builder --mac --config electron-builder.yml
 ## 硬件连接
 
 1. 用雕刻机附带的 USB 线接到电脑。
-2. 关掉 LaserGRBL、Candle 等会占用串口的软件。
+2. 关掉 LaserGRBL、Candle、Arduino IDE 串口监视器等会占用串口的软件。
 3. 打开老王打印机，等待「雕刻机已连接」。
 4. 失败时点「重新检测」或「连接帮助」。
 
 普通用户不用选接口或通信速率。需要排查时，从「设置」进入高级设置查看。
 
 若软件读不到工作区域，才会出现「设置工作区域」引导。
+
+### Mac 上插上雕刻机没有反应
+
+按下面顺序试：
+
+1. 完全退出 LaserGRBL、Candle、Arduino IDE，拔掉 USB，再插上，点「重新检测」。
+2. 确认安装包是在**这台 Mac 上**用 `npm run dist:mac` 打的，架构和芯片一致（M 系列看 `arm64`，Intel 看 `x64`）。从别的系统拷来的包、或 universal 包，串口模块经常加载失败，界面会一直停在未连接。
+3. 未签名时先允许打开：
+
+```bash
+xattr -cr /Applications/老王打印机.app
+```
+
+4. CH340 / ESP32 控制板在 macOS 上会被 DTR 按住复位，软件打开串口后会松开 DTR/RTS，并使用 `/dev/cu.*`（不用会卡住的 `/dev/tty.*`）。若仍无反应，换原装 USB 线，不要用只供电的充电线。
+5. 在「设置 → 高级」里看通信记录：有欢迎信息或设置行说明已经连上固件；完全空白则是系统没把串口交给本应用。
 
 ## 空载测试
 

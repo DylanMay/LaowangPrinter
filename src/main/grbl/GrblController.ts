@@ -9,7 +9,7 @@ import type { GrblStatusReport } from './types'
 
 const LINE_TIMEOUT_MS = 1500
 const MOTION_TIMEOUT_MS = 60_000
-const VERSION_WAIT_MS = 800
+const VERSION_WAIT_MS = 2000
 
 type GrblEvents = {
   status: [GrblStatusReport]
@@ -55,7 +55,7 @@ export class GrblController {
     const welcomed = await this.waitFor(() => this.version !== null, VERSION_WAIT_MS)
     if (!welcomed) {
       await this.writeRealtime('$I\n')
-      await this.waitFor(() => this.version !== null, 400)
+      await this.waitFor(() => this.version !== null, 800)
     }
     if (!this.version) {
       throw new NotGrblError()
