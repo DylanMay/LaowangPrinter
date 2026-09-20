@@ -6,6 +6,8 @@ export type SerialPortInfo = {
   path: string
   manufacturer?: string
   serialNumber?: string
+  vendorId?: string
+  productId?: string
 }
 
 export type SerialPortLike = {

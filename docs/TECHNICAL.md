@@ -337,6 +337,8 @@ onClose(handler)
 4. 成功则连接并读取配置
 5. 失败则对用户显示「没有检测到雕刻机」
 
+macOS：只用 `/dev/cu.*`（`/dev/tty.*` 会等载波，看起来像没反应）；`tty.*` 与 `cu.*` 成对时去重。打开后松开 DTR/RTS，避免 CH340/ESP32 停在复位。自动连接会依次试全部候选，不会因为第一个端口占用就停。
+
 不要把探测过程中的原始日志作为主 UI。
 
 ### 7.3 Mock
@@ -807,7 +809,7 @@ Windows / macOS 安装包用 `electron-builder.yml`：
 
 ```bash
 npm run dist:win   # 在 Windows 上：NSIS + portable
-npm run dist:mac   # 在 macOS 上：universal dmg + zip
+npm run dist:mac   # 在 macOS 上：当前架构的 dmg + zip（不要 universal）
 ```
 
 `serialport` 会 `npmRebuild`，并 `asarUnpack`。不要设置 `LAOWANG_SERIAL=mock`。步骤详见 [README](../README.md)。

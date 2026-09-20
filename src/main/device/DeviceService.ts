@@ -2,8 +2,8 @@ import { formatUserError, toAppError, USER_ERRORS } from '@shared/errors/appErro
 import type { AdvancedSnapshot, MachineConfig } from '@shared/types/machine'
 import type { DeviceState, DeviceStatus, PublicDevice } from '@shared/types/state'
 import { GrblController } from '../grbl/GrblController'
+import { likelyPorts, toCalloutPath } from '../serial/portFilter'
 import { SerialManager } from '../serial/SerialManager'
-import type { SerialPortInfo } from '../serial/types'
 
 const DISPLAY_NAME = '我的雕刻机'
 const WATCH_MS = 2000
@@ -114,11 +114,12 @@ export class DeviceService {
     this.setState('detecting')
     try {
       const ports = likelyPorts(await this.serial.listPorts())
-      const candidates = id
-        ? ports.filter((port) => port.path === id)
+      const wanted = id ? toCalloutPath(id) : undefined
+      const candidates = wanted
+        ? ports.filter((port) => port.path === wanted)
         : ports
-      if (id && candidates.length === 0) {
-        candidates.push({ path: id })
+      if (wanted && candidates.length === 0) {
+        candidates.push({ path: wanted })
       }
       if (candidates.length === 0) {
         this.setError('NO_DEVICE')
@@ -137,7 +138,6 @@ export class DeviceService {
           lastError = error
           this.grbl.stop()
           await this.serial.disconnect()
-          if (isPortBusy(error)) break
         }
       }
       throw lastError
@@ -218,7 +218,7 @@ export class DeviceService {
     const ports = likelyPorts(await this.serial.listPorts())
     if (this.state !== 'disconnected' || this.connectLock) return
     if (ports.length === 0) return
-    await this.connect(ports[0].path)
+    await this.connect()
   }
 
   private async runActivity(
@@ -261,22 +261,4 @@ export class DeviceService {
     const status = this.getStatus()
     this.listeners.forEach((listener) => listener(status))
   }
-}
-
-export function likelyPorts(ports: SerialPortInfo[]): SerialPortInfo[] {
-  return ports.filter((port) => isLikelyEngraverPort(port.path))
-}
-
-export function isLikelyEngraverPort(path: string): boolean {
-  const value = path.toLowerCase()
-  if (value.includes('bluetooth')) return false
-  if (/ttys\d+$/.test(value)) return false
-  if (value.startsWith('mock://')) return true
-  if (/ttyusb|ttyacm|usbserial|usbmodem|wchusb|slab_usb|usbto|ch34|cp210|cu\.usb/.test(value)) return true
-  if (/^com\d+/.test(value)) return true
-  return false
-}
-
-function isPortBusy(error: unknown): boolean {
-  return toAppError(error).code === 'PORT_BUSY'
 }
