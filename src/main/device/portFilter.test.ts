@@ -1,4 +1,4 @@
-import { isLikelyEngraverPort, likelyPorts, toCalloutPath } from '../serial/portFilter'
+import { discoverPorts, isLikelyEngraverPort, likelyPorts, parseDevSerialNames, toCalloutPath } from '../serial/portFilter'
 import { describe, expect, it } from 'vitest'
 
 describe('串口候选', () => {
@@ -11,6 +11,7 @@ describe('串口候选', () => {
     expect(isLikelyEngraverPort('/dev/cu.wchusbserial1410')).toBe(true)
     expect(isLikelyEngraverPort('/dev/cu.usbserial-110')).toBe(true)
     expect(isLikelyEngraverPort('/dev/cu.usbmodem1101')).toBe(true)
+    expect(isLikelyEngraverPort('/dev/cu.HC-06')).toBe(true)
     expect(isLikelyEngraverPort('/dev/ttyS0')).toBe(false)
     expect(isLikelyEngraverPort('/dev/tty.Bluetooth-Incoming-Port')).toBe(false)
     expect(isLikelyEngraverPort('/dev/cu.Bluetooth-Incoming-Port')).toBe(false)
@@ -44,6 +45,31 @@ describe('串口候选', () => {
       '/dev/cu.usbserial-110',
       'COM3',
       'mock://engraver',
+    ])
+  })
+
+  it('手动连接会把其余 cu 设备当作候选，并扫描 /dev 名称', () => {
+    const listed = [
+      { path: '/dev/cu.debug-console' },
+      { path: '/dev/cu.MY-LASER' },
+      { path: '/dev/cu.usbserial-110' },
+    ]
+    expect(discoverPorts(listed, 'auto').map((port) => port.path)).toEqual(['/dev/cu.usbserial-110'])
+    expect(discoverPorts(listed, 'manual').map((port) => port.path)).toEqual([
+      '/dev/cu.usbserial-110',
+      '/dev/cu.MY-LASER',
+    ])
+    expect(parseDevSerialNames([
+      'cu.usbserial-10',
+      'tty.usbserial-10',
+      'cu.Bluetooth-Incoming-Port',
+      'cu.MY-LASER',
+      'ttyUSB0',
+      'cu.debug-console',
+    ]).map((port) => port.path)).toEqual([
+      '/dev/cu.usbserial-10',
+      '/dev/cu.MY-LASER',
+      '/dev/ttyUSB0',
     ])
   })
 })

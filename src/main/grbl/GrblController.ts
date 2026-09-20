@@ -1,4 +1,5 @@
 import { EventEmitter } from 'node:events'
+import { STOCK_GRBL_TRAVEL_MM } from '@shared/machine/Xingguang4N'
 import type { JogParams, MachineConfig } from '@shared/types/machine'
 import type { MachineState } from '@shared/types/state'
 import { SerialManager } from '../serial/SerialManager'
@@ -9,7 +10,8 @@ import type { GrblStatusReport } from './types'
 
 const LINE_TIMEOUT_MS = 1500
 const MOTION_TIMEOUT_MS = 60_000
-const VERSION_WAIT_MS = 2000
+/** 星光4N 的 Nano 旧引导程序约 2 秒；等欢迎信息，不要在引导期内放弃。 */
+const VERSION_WAIT_MS = 2600
 
 type GrblEvents = {
   status: [GrblStatusReport]
@@ -225,8 +227,8 @@ export class GrblController {
   }
 
   private buildConfig(): MachineConfig {
-    const widthMm = positive(this.settings.get(130))
-    const heightMm = positive(this.settings.get(131))
+    const widthMm = resolveAxisTravel(this.settings.get(130))
+    const heightMm = resolveAxisTravel(this.settings.get(131))
     return {
       widthMm,
       heightMm,
@@ -303,6 +305,12 @@ function mapMachineState(state: GrblStatusReport['state'] | undefined): MachineS
     default:
       return 'unknown'
   }
+}
+
+function resolveAxisTravel(value: number | undefined): number | null {
+  const mm = positive(value)
+  if (mm === STOCK_GRBL_TRAVEL_MM) return null
+  return mm
 }
 
 function positive(value: number | undefined): number | null {

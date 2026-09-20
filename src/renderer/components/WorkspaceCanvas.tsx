@@ -1,5 +1,5 @@
+import { DEFAULT_WORK_AREA, isOutOfBounds } from '@shared/geometry/CoordinateTransformer'
 import { useEffect, useRef } from 'react'
-import { isOutOfBounds } from '@shared/geometry/CoordinateTransformer'
 import { drawWorkspace, patternHit } from '../canvas/CanvasRenderer'
 import { layoutViewport, pixelToWorkspace } from '../canvas/Viewport'
 import { useAppStore } from '../store/appStore'
@@ -7,7 +7,7 @@ import { useAppStore } from '../store/appStore'
 export function WorkspaceCanvas() {
   const hostRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const viewportRef = useRef(layoutViewport({ widthMm: 300, heightMm: 200 }, 1, 1))
+  const viewportRef = useRef(layoutViewport(DEFAULT_WORK_AREA, 1, 1))
   const imported = useAppStore((state) => state.imported)
   const placement = useAppStore((state) => state.placement)
   const workArea = useAppStore((state) => state.workArea)

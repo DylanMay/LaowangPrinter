@@ -19,7 +19,7 @@ export type Bounds = {
   heightMm: number
 }
 
-export const DEFAULT_WORK_AREA: WorkArea = { widthMm: 300, heightMm: 200 }
+export const DEFAULT_WORK_AREA: WorkArea = { widthMm: 50, heightMm: 50 }
 
 export const BOUNDS_EPS_MM = 0.05
 

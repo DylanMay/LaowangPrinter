@@ -1,14 +1,22 @@
+import { readdir } from 'node:fs/promises'
 import { SerialPort } from 'serialport'
 import { PortBusyError } from './errors'
-import { toCalloutPath } from './portFilter'
+import { mergePortLists, parseDevSerialNames, toCalloutPath } from './portFilter'
 import type { BaudRate, SerialBackend, SerialPortInfo, SerialPortLike } from './types'
 
 const LIST_TIMEOUT_MS = 3000
 const OPEN_TIMEOUT_MS = 4000
-const SETTLE_MS = 400
 
 export class SerialPortWrapper implements SerialPortLike {
-  constructor(private readonly port: SerialPort) {}
+  private dataHandler: ((chunk: Buffer) => void) | null = null
+  private readonly queued: Buffer[] = []
+
+  constructor(private readonly port: SerialPort) {
+    this.port.on('data', (chunk: Buffer) => {
+      if (this.dataHandler) this.dataHandler(chunk)
+      else this.queued.push(Buffer.from(chunk))
+    })
+  }
 
   get path(): string {
     return this.port.path
@@ -50,7 +58,8 @@ export class SerialPortWrapper implements SerialPortLike {
   }
 
   onData(handler: (chunk: Buffer) => void): void {
-    this.port.on('data', handler)
+    this.dataHandler = handler
+    for (const chunk of this.queued.splice(0)) handler(chunk)
   }
 
   onError(handler: (error: Error) => void): void {
@@ -64,9 +73,11 @@ export class SerialPortWrapper implements SerialPortLike {
 
 export class NodeSerialBackend implements SerialBackend {
   async list(): Promise<SerialPortInfo[]> {
+    const scanned = await scanOsSerialNodes()
+    let listed: SerialPortInfo[] = []
     try {
       const ports = await withTimeout(SerialPort.list(), LIST_TIMEOUT_MS)
-      return ports.map((port) => ({
+      listed = ports.map((port) => ({
         path: port.path,
         manufacturer: port.manufacturer,
         serialNumber: port.serialNumber ?? undefined,
@@ -75,8 +86,10 @@ export class NodeSerialBackend implements SerialBackend {
       }))
     } catch (error) {
       console.error('[laowang] serial list failed', error)
-      return []
     }
+    const merged = mergePortLists(listed, scanned)
+    console.log('[laowang] serial ports', merged.map((port) => port.path).join(', ') || '(none)')
+    return merged
   }
 
   async open(path: string, baudRate: BaudRate): Promise<SerialPortLike> {
@@ -91,9 +104,9 @@ export class NodeSerialBackend implements SerialBackend {
     const wrapper = new SerialPortWrapper(native)
     try {
       await withTimeout(wrapper.open(), OPEN_TIMEOUT_MS)
-      // ESP32 / CH340 在 macOS 上默认 DTR/RTS 会把板子按在复位或下载模式，看起来像“插上没反应”。
+      // 星光4N 是 Arduino Nano：拉高 DTR 会进 2 秒引导程序，固件像死机。
+      // 只松开 DTR/RTS，避免 ESP32 停在下载模式，也不再主动复位 Nano。
       await releaseControlLines(native)
-      await sleep(SETTLE_MS)
       return wrapper
     } catch (error) {
       await closeQuietly(native)
@@ -102,18 +115,27 @@ export class NodeSerialBackend implements SerialBackend {
   }
 }
 
-function releaseControlLines(port: SerialPort): Promise<void> {
+async function scanOsSerialNodes(): Promise<SerialPortInfo[]> {
+  try {
+    const names = await readdir('/dev')
+    return parseDevSerialNames(names)
+  } catch {
+    return []
+  }
+}
+
+async function releaseControlLines(port: SerialPort): Promise<void> {
+  await setControlLines(port, { dtr: false, rts: false })
+}
+
+function setControlLines(port: SerialPort, flags: { dtr: boolean; rts: boolean }): Promise<void> {
   return new Promise((resolve) => {
     if (typeof port.set !== 'function') {
       resolve()
       return
     }
-    port.set({ dtr: false, rts: false }, () => resolve())
+    port.set(flags, () => resolve())
   })
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {

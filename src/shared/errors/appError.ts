@@ -25,7 +25,7 @@ export const USER_ERRORS: Record<AppErrorCode, { userMessage: string; hint?: str
   },
   NO_DEVICE: {
     userMessage: '没有检测到雕刻机。',
-    hint: '请插上 USB 后再试一次。',
+    hint: '请插上 USB，并关掉其他雕刻软件。星光4N 在 Mac 上可能要先装厂家的 USB 驱动。',
   },
   GRBL_ERROR: {
     userMessage: '雕刻机无法执行当前动作。',
