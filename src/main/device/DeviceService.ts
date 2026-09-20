@@ -1,10 +1,12 @@
+import { XINGGUANG_4N_BAUD_RATES } from '@shared/machine/Xingguang4N'
 import { formatUserError, toAppError, USER_ERRORS } from '@shared/errors/appError'
 import type { AdvancedSnapshot, MachineConfig } from '@shared/types/machine'
 import type { DeviceState, DeviceStatus, PublicDevice } from '@shared/types/state'
 import { GrblController } from '../grbl/GrblController'
 import { discoverPorts, likelyPorts, toCalloutPath } from '../serial/portFilter'
+import { isBaudRate } from '../serial/errors'
 import { SerialManager } from '../serial/SerialManager'
-import { DEFAULT_BAUD_RATE, type BaudRate } from '../serial/types'
+import type { BaudRate } from '../serial/types'
 
 const DISPLAY_NAME = '我的雕刻机'
 const WATCH_MS = 2000
@@ -271,8 +273,8 @@ export class DeviceService {
 }
 
 function baudsFor(path: string): BaudRate[] {
-  if (path.startsWith('mock://')) return [DEFAULT_BAUD_RATE]
-  return [115200, 9600, 250000]
+  if (path.startsWith('mock://')) return [115200]
+  return XINGGUANG_4N_BAUD_RATES.filter(isBaudRate)
 }
 
 function waitWhile(condition: () => boolean, ms: number): Promise<void> {

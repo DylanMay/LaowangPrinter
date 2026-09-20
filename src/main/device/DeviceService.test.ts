@@ -69,6 +69,18 @@ describe('DeviceService', () => {
     expect(next.workArea).toEqual({ widthMm: 280, heightMm: 160 })
   })
 
+  it('行程仍是出厂默认 250 mm 时按星光4N引导填写工作区域', async () => {
+    const service = track(
+      new DeviceService(
+        new SerialManager(createMockEngraverBackend({ settings: { 130: 250, 131: 250 } })),
+      ),
+    )
+    const status = await service.connect()
+    expect(status.state).toBe('connected')
+    expect(status.needsSizeSetup).toBe(true)
+    expect(status.workArea).toBeUndefined()
+  })
+
   it('非雕刻机固件当作没有检测到雕刻机', async () => {
     const backend = new MockSerialBackend()
     backend.ports = [{ path: 'mock://engraver' }]
