@@ -145,20 +145,25 @@ npx electron-builder --mac --config electron-builder.yml
 
 1. 用机器附带的 USB 线接到电脑，不要用只供电的充电线。
 2. 完全退出 LaserGRBL、Candle、Arduino IDE 串口监视器，它们会占用串口。
-3. Mac 上如果系统里一直没有串口，先安装 [WCH CH34X 驱动](https://www.wch.cn/downloads/CH34XSER_MAC_ZIP.html)，安装后**重启 Mac**，再拔掉 USB 重插。
+3. Mac 上请按下面安装 **CH34xVCPDriver**（点 Install 没反应通常不是坏了）。
 4. 打开老王打印机，等待「雕刻机已连接」，或点「连接设备」。
 5. 若读不到行程，会提示填写工作区域，填 50 和 50（旧版填 42）即可。
 
 需要排查时，从「设置」进入高级设置查看通信记录。
 
-### Mac 上仍然检测不到
+### Mac 驱动点 Install 没反应
 
-1. 确认用的是当前 `main` 之后的修复分支（含星光4N 对接）。
-2. 未签名时：`xattr -cr /Applications/老王打印机.app`
-3. 不要同时开 LaserGRBL。
-4. 若提示「已经看到雕刻机，但还不能通信」，就是 USB 芯片在、驱动没装好。
-5. 星光4N 的 Nano 上电后大约 2 秒才应答；点连接后请稍等。
-6. 6.46 蓝牙版请先拨到 USB。
+新系统不会在点 Install 时直接装上，要先打开扩展开关：
+
+1. 打开 [WCH 驱动下载页](https://www.wch.cn/downloads/CH34XSER_MAC_ZIP.html)，解压后用 **dmg**（不要用旧的 pkg）。
+2. 把 `CH34xVCPDriver` 拖进「应用程序」，从启动台打开它。
+3. **先不要点 Install。** 打开「系统设置 → 通用 → 登录项与扩展 → 驱动程序扩展」，解锁后打开 **CH34xVCPDriver**。
+4. 再回到驱动应用点 **Install**，应弹出 Success。
+5. 拔掉 USB，再插上，重新点「连接设备」。
+
+苹果芯片如果提示需要 Rosetta，先安装 Rosetta 再打开 dmg。密码框有时会藏在其他窗口后面。
+
+装好后终端执行 `ls /dev/cu.wch*` 应能看到设备。只在「系统信息 → USB」里看到芯片、却没有 `cu.wch*`，说明扩展开关还没打开。
 
 ## 空载测试
 

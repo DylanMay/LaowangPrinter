@@ -11,6 +11,7 @@ export function FirstRunGuide() {
   const activity = useAppStore((state) => state.activity)
   const notice = useAppStore((state) => state.notice)
   const advanceGuide = useAppStore((state) => state.advanceGuide)
+  const showNotice = useAppStore((state) => state.showNotice)
   if (!open) return null
 
   const current = GUIDE_STEPS[Math.min(step, GUIDE_STEPS.length - 1)]!
@@ -40,7 +41,7 @@ export function FirstRunGuide() {
         {step === 2 && moveTested ? (
           <p className="mt-3 text-center text-[13px] font-semibold text-brand">{COPY.testMoveOk}</p>
         ) : null}
-        <div className="mt-5 flex justify-center">
+        <div className="mt-5 flex justify-center gap-2.5">
           <button
             type="button"
             disabled={busy}
@@ -49,6 +50,15 @@ export function FirstRunGuide() {
           >
             {label}
           </button>
+          {step === 0 ? (
+            <button
+              type="button"
+              onClick={() => showNotice(COPY.helpBody)}
+              className="h-11 rounded-xl border border-line bg-paper px-4 text-sm font-semibold"
+            >
+              {COPY.connectHelp}
+            </button>
+          ) : null}
         </div>
       </div>
     </div>

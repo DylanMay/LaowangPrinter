@@ -14,7 +14,7 @@ const WATCH_MS = 2000
 const UNRECOGNIZED =
   '找到了 USB 设备，但无法识别为雕刻机。请关掉其他雕刻软件，拔掉 USB 再插上后重试。'
 const NEED_DRIVER =
-  '电脑已经看到雕刻机，但还不能通信。请安装厂家 USB 驱动，装好后把 USB 拔掉再插上。'
+  '电脑已经看到雕刻机，但还不能通信。驱动窗口点 Install 没反应时，请先到系统设置打开「驱动程序扩展」，再点 Install。'
 
 export class DeviceService {
   private state: DeviceState = 'disconnected'
