@@ -145,7 +145,7 @@ npx electron-builder --mac --config electron-builder.yml
 
 1. 用机器附带的 USB 线接到电脑，不要用只供电的充电线。
 2. 完全退出 LaserGRBL、Candle、Arduino IDE 串口监视器，它们会占用串口。
-3. Mac 上如果系统里一直没有串口，先安装厂家提供的 USB 驱动（WCH CH34X），再拔掉重插。
+3. Mac 上如果系统里一直没有串口，先安装 [WCH CH34X 驱动](https://www.wch.cn/downloads/CH34XSER_MAC_ZIP.html)，安装后**重启 Mac**，再拔掉 USB 重插。
 4. 打开老王打印机，等待「雕刻机已连接」，或点「连接设备」。
 5. 若读不到行程，会提示填写工作区域，填 50 和 50（旧版填 42）即可。
 
@@ -153,11 +153,12 @@ npx electron-builder --mac --config electron-builder.yml
 
 ### Mac 上仍然检测不到
 
-1. 确认用的是**这台 Mac 上新打的包**（`npm run dist:mac`，M 系列是 `arm64`）。
+1. 确认用的是当前 `main` 之后的修复分支（含星光4N 对接）。
 2. 未签名时：`xattr -cr /Applications/老王打印机.app`
 3. 不要同时开 LaserGRBL。
-4. 星光4N 的 Nano 上电后大约 2 秒才应答；点连接后请稍等，不要连点。
-5. 6.46 蓝牙版请先拨到 USB，或确认系统里出现对应的串口后再连。
+4. 若提示「已经看到雕刻机，但还不能通信」，就是 USB 芯片在、驱动没装好。
+5. 星光4N 的 Nano 上电后大约 2 秒才应答；点连接后请稍等。
+6. 6.46 蓝牙版请先拨到 USB。
 
 ## 空载测试
 

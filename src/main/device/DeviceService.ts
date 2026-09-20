@@ -3,6 +3,7 @@ import { formatUserError, toAppError, USER_ERRORS } from '@shared/errors/appErro
 import type { AdvancedSnapshot, MachineConfig } from '@shared/types/machine'
 import type { DeviceState, DeviceStatus, PublicDevice } from '@shared/types/state'
 import { GrblController } from '../grbl/GrblController'
+import { readDarwinUsbTree, usbLooksLikeSerialAdapter } from '../serial/darwinUsb'
 import { discoverPorts, likelyPorts, toCalloutPath } from '../serial/portFilter'
 import { isBaudRate } from '../serial/errors'
 import { SerialManager } from '../serial/SerialManager'
@@ -12,6 +13,8 @@ const DISPLAY_NAME = '我的雕刻机'
 const WATCH_MS = 2000
 const UNRECOGNIZED =
   '找到了 USB 设备，但无法识别为雕刻机。请关掉其他雕刻软件，拔掉 USB 再插上后重试。'
+const NEED_DRIVER =
+  '电脑已经看到雕刻机，但还不能通信。请安装厂家 USB 驱动，装好后把 USB 拔掉再插上。'
 
 export class DeviceService {
   private state: DeviceState = 'disconnected'
@@ -129,7 +132,9 @@ export class DeviceService {
         candidates.push({ path: wanted })
       }
       if (candidates.length === 0) {
-        this.setError('NO_DEVICE')
+        this.errorMessage = await explainMissingDevice()
+        this.state = 'disconnected'
+        this.emit()
         return this.getStatus()
       }
       this.setState('connecting')
@@ -275,6 +280,12 @@ export class DeviceService {
 function baudsFor(path: string): BaudRate[] {
   if (path.startsWith('mock://')) return [115200]
   return XINGGUANG_4N_BAUD_RATES.filter(isBaudRate)
+}
+
+async function explainMissingDevice(): Promise<string> {
+  const tree = await readDarwinUsbTree()
+  if (usbLooksLikeSerialAdapter(tree)) return NEED_DRIVER
+  return formatUserError({ code: 'NO_DEVICE', ...USER_ERRORS.NO_DEVICE })
 }
 
 function waitWhile(condition: () => boolean, ms: number): Promise<void> {

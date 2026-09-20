@@ -1,5 +1,6 @@
 import { readdir } from 'node:fs/promises'
 import { SerialPort } from 'serialport'
+import { listDevNodesViaShell } from './darwinUsb'
 import { PortBusyError } from './errors'
 import { mergePortLists, parseDevSerialNames, toCalloutPath } from './portFilter'
 import type { BaudRate, SerialBackend, SerialPortInfo, SerialPortLike } from './types'
@@ -116,6 +117,12 @@ export class NodeSerialBackend implements SerialBackend {
 }
 
 async function scanOsSerialNodes(): Promise<SerialPortInfo[]> {
+  const fromDir = await readDevDirectory()
+  const fromShell = await listDevNodesViaShell()
+  return mergePortLists(fromDir, fromShell)
+}
+
+async function readDevDirectory(): Promise<SerialPortInfo[]> {
   try {
     const names = await readdir('/dev')
     return parseDevSerialNames(names)
