@@ -104,8 +104,9 @@ export class NodeSerialBackend implements SerialBackend {
     const wrapper = new SerialPortWrapper(native)
     try {
       await withTimeout(wrapper.open(), OPEN_TIMEOUT_MS)
-      // ESP32 / CH340 在 macOS 上默认 DTR/RTS 会把板子按在复位或下载模式。
-      await pulseControlLines(native)
+      // 星光4N 是 Arduino Nano：拉高 DTR 会进 2 秒引导程序，固件像死机。
+      // 只松开 DTR/RTS，避免 ESP32 停在下载模式，也不再主动复位 Nano。
+      await releaseControlLines(native)
       return wrapper
     } catch (error) {
       await closeQuietly(native)
@@ -123,11 +124,8 @@ async function scanOsSerialNodes(): Promise<SerialPortInfo[]> {
   }
 }
 
-async function pulseControlLines(port: SerialPort): Promise<void> {
-  await setControlLines(port, { dtr: true, rts: false })
-  await sleep(50)
+async function releaseControlLines(port: SerialPort): Promise<void> {
   await setControlLines(port, { dtr: false, rts: false })
-  await sleep(80)
 }
 
 function setControlLines(port: SerialPort, flags: { dtr: boolean; rts: boolean }): Promise<void> {
@@ -138,10 +136,6 @@ function setControlLines(port: SerialPort, flags: { dtr: boolean; rts: boolean }
     }
     port.set(flags, () => resolve())
   })
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {

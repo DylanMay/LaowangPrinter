@@ -17,7 +17,7 @@ const USB_SERIAL_VENDORS = new Set([
   '2e8a',
 ])
 
-const NOISE = /bluetooth|debug-console|incoming|airpods|iphone|ipad|watch|headset|bths|mals|bgscc|wlan-debug|continuity|ibridge|dialup/
+const NOISE = /bluetooth-incoming|debug-console|incoming-port|airpods|iphone|ipad|watch|headset|bths|mals|bgscc|wlan-debug|continuity|ibridge|dialup/
 
 export function toCalloutPath(path: string): string {
   if (path.startsWith('/dev/tty.')) {
@@ -67,7 +67,7 @@ export function isLikelyEngraverPort(pathOrPort: string | SerialPortInfo): boole
   // macOS 的 /dev/tty.* 会等载波，打开后像死机。只用 cu.*。
   if (value.startsWith('/dev/tty.')) return false
   if (value.startsWith('mock://')) return true
-  if (/ttyusb|ttyacm|usbserial|usbmodem|wchusb|slab_usb|usbto|ch34|cp210|cu\.usb/.test(value)) {
+  if (/ttyusb|ttyacm|usbserial|usbmodem|wchusb|slab_usb|usbto|ch34|cp210|cu\.usb|hc-0[56]|xingguang|starlight/.test(value)) {
     return true
   }
   if (/^com\d+/.test(value)) return true

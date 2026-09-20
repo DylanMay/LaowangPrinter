@@ -1,11 +1,12 @@
 import { COPY } from '@shared/copy'
+import { XINGGUANG_4N_HEIGHT_MM, XINGGUANG_4N_WIDTH_MM } from '@shared/machine/Xingguang4N'
 import { useState } from 'react'
 import { useAppStore } from '../store/appStore'
 
 export function SizeSetup() {
   const submitSize = useAppStore((state) => state.submitSize)
-  const [width, setWidth] = useState('')
-  const [height, setHeight] = useState('')
+  const [width, setWidth] = useState(String(XINGGUANG_4N_WIDTH_MM))
+  const [height, setHeight] = useState(String(XINGGUANG_4N_HEIGHT_MM))
 
   return (
     <form
@@ -23,7 +24,7 @@ export function SizeSetup() {
           <input
             value={width}
             inputMode="decimal"
-            placeholder="300"
+            placeholder={String(XINGGUANG_4N_WIDTH_MM)}
             onChange={(event) => setWidth(event.target.value)}
             className="h-10 rounded-xl border border-line bg-paper px-3 text-sm font-semibold text-ink outline-none focus:border-brand"
           />
@@ -33,7 +34,7 @@ export function SizeSetup() {
           <input
             value={height}
             inputMode="decimal"
-            placeholder="200"
+            placeholder={String(XINGGUANG_4N_HEIGHT_MM)}
             onChange={(event) => setHeight(event.target.value)}
             className="h-10 rounded-xl border border-line bg-paper px-3 text-sm font-semibold text-ink outline-none focus:border-brand"
           />

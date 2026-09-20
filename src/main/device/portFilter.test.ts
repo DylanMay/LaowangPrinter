@@ -11,6 +11,7 @@ describe('串口候选', () => {
     expect(isLikelyEngraverPort('/dev/cu.wchusbserial1410')).toBe(true)
     expect(isLikelyEngraverPort('/dev/cu.usbserial-110')).toBe(true)
     expect(isLikelyEngraverPort('/dev/cu.usbmodem1101')).toBe(true)
+    expect(isLikelyEngraverPort('/dev/cu.HC-06')).toBe(true)
     expect(isLikelyEngraverPort('/dev/ttyS0')).toBe(false)
     expect(isLikelyEngraverPort('/dev/tty.Bluetooth-Incoming-Port')).toBe(false)
     expect(isLikelyEngraverPort('/dev/cu.Bluetooth-Incoming-Port')).toBe(false)
