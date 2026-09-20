@@ -169,7 +169,9 @@ npx electron-builder --mac --config electron-builder.yml
 
 第一次建议先空载（工作区默认选项）：
 
-1. 导入 SVG，确认图案在工作区域内。
+仓库里有一张 40×40 mm 的测试图：[`examples/xingguang4n-test.svg`](examples/xingguang4n-test.svg)。旧版 42 mm、新版 50 mm 工作区都能放下。
+
+1. 导入这张 SVG，确认图案在工作区域内。
 2. 材料选 3mm 木板、效果选标准。
 3. 工作方式保持「空载测试」。
 4. 预览路径与预计时间。
