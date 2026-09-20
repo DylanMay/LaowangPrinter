@@ -26,7 +26,7 @@ export const COPY = {
   connectHelp: '连接帮助',
   help: '帮助',
   settings: '设置',
-  helpBody: '用雕刻机附带的数据线接到电脑。如果开着别的雕刻软件，请先退出。',
+  helpBody: '用雕刻机附带的数据线接到电脑。如果开着别的雕刻软件，请先退出。Mac 请用原装 USB 线，不要用只供电的充电线。',
   settingsBody: '这些信息给需要排查问题的人看。',
   advancedTitle: '高级设置',
   advancedPort: '接口',

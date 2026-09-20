@@ -51,6 +51,7 @@ export class GrblController {
 
   async identify(): Promise<MachineConfig> {
     this.resetSession()
+    await this.writeRealtime('\r\n')
     await this.writeRealtime(Buffer.from([REALTIME_RESET]))
     const welcomed = await this.waitFor(() => this.version !== null, VERSION_WAIT_MS)
     if (!welcomed) {

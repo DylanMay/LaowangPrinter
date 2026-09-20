@@ -2,11 +2,14 @@ import { formatUserError, toAppError, USER_ERRORS } from '@shared/errors/appErro
 import type { AdvancedSnapshot, MachineConfig } from '@shared/types/machine'
 import type { DeviceState, DeviceStatus, PublicDevice } from '@shared/types/state'
 import { GrblController } from '../grbl/GrblController'
-import { likelyPorts, toCalloutPath } from '../serial/portFilter'
+import { discoverPorts, likelyPorts, toCalloutPath } from '../serial/portFilter'
 import { SerialManager } from '../serial/SerialManager'
+import { DEFAULT_BAUD_RATE, type BaudRate } from '../serial/types'
 
 const DISPLAY_NAME = '我的雕刻机'
 const WATCH_MS = 2000
+const UNRECOGNIZED =
+  '找到了 USB 设备，但无法识别为雕刻机。请关掉其他雕刻软件，拔掉 USB 再插上后重试。'
 
 export class DeviceService {
   private state: DeviceState = 'disconnected'
@@ -107,13 +110,15 @@ export class DeviceService {
     }))
   }
 
-  async connect(id?: string): Promise<DeviceStatus> {
+  async connect(id?: string, mode: 'auto' | 'manual' = 'manual'): Promise<DeviceStatus> {
+    if (this.connectLock) {
+      await waitWhile(() => this.connectLock, 10_000)
+    }
     if (this.state === 'connected') return this.getStatus()
-    if (this.connectLock) return this.getStatus()
     this.connectLock = true
     this.setState('detecting')
     try {
-      const ports = likelyPorts(await this.serial.listPorts())
+      const ports = discoverPorts(await this.serial.listPorts(), mode)
       const wanted = id ? toCalloutPath(id) : undefined
       const candidates = wanted
         ? ports.filter((port) => port.path === wanted)
@@ -128,22 +133,24 @@ export class DeviceService {
       this.setState('connecting')
       let lastError: unknown
       for (const port of candidates) {
-        try {
-          await this.serial.connect(port.path)
-          await this.grbl.identify()
-          this.errorMessage = null
-          this.setState('connected')
-          return this.getStatus()
-        } catch (error) {
-          lastError = error
-          this.grbl.stop()
-          await this.serial.disconnect()
+        for (const baudRate of baudsFor(port.path)) {
+          try {
+            await this.serial.connect(port.path, baudRate)
+            await this.grbl.identify()
+            this.errorMessage = null
+            this.setState('connected')
+            return this.getStatus()
+          } catch (error) {
+            lastError = error
+            this.grbl.stop()
+            await this.serial.disconnect()
+          }
         }
       }
       throw lastError
     } catch (error) {
       const appError = toAppError(error)
-      this.errorMessage = formatUserError(appError)
+      this.errorMessage = appError.code === 'NO_DEVICE' ? UNRECOGNIZED : formatUserError(appError)
       this.state = appError.code === 'NO_DEVICE' ? 'disconnected' : 'error'
       this.emit()
       return this.getStatus()
@@ -218,7 +225,7 @@ export class DeviceService {
     const ports = likelyPorts(await this.serial.listPorts())
     if (this.state !== 'disconnected' || this.connectLock) return
     if (ports.length === 0) return
-    await this.connect()
+    await this.connect(undefined, 'auto')
   }
 
   private async runActivity(
@@ -261,4 +268,21 @@ export class DeviceService {
     const status = this.getStatus()
     this.listeners.forEach((listener) => listener(status))
   }
+}
+
+function baudsFor(path: string): BaudRate[] {
+  if (path.startsWith('mock://')) return [DEFAULT_BAUD_RATE]
+  return [115200, 9600, 250000]
+}
+
+function waitWhile(condition: () => boolean, ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    const started = Date.now()
+    const timer = setInterval(() => {
+      if (!condition() || Date.now() - started >= ms) {
+        clearInterval(timer)
+        resolve()
+      }
+    }, 50)
+  })
 }

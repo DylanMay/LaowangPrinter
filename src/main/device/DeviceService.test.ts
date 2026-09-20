@@ -75,7 +75,7 @@ describe('DeviceService', () => {
     const service = track(new DeviceService(new SerialManager(backend)))
     const status = await service.connect()
     expect(status.state).toBe('disconnected')
-    expect(status.errorMessage).toContain('没有检测到雕刻机')
+    expect(status.errorMessage).toContain('无法识别为雕刻机')
     expect(status.errorMessage).not.toMatch(/GRBL|error:20|1\.1h/i)
   })
 
@@ -105,6 +105,23 @@ describe('DeviceService', () => {
     const status = await service.connect()
     expect(status.state).toBe('connected')
     expect(status.displayName).toBe('我的雕刻机')
+  })
+
+  it('点击连接时会尝试名称不典型的 cu 设备', async () => {
+    const backend = createMockEngraverBackend()
+    backend.backend.ports = [{ path: '/dev/cu.MY-LASER' }]
+    const service = track(new DeviceService(new SerialManager(backend)))
+    const status = await service.connect()
+    expect(status.state).toBe('connected')
+    expect(status.displayName).toBe('我的雕刻机')
+  })
+
+  it('自动监听不会去碰名称不像雕刻机的 cu 设备', async () => {
+    const backend = createMockEngraverBackend()
+    backend.backend.ports = [{ path: '/dev/cu.MY-LASER' }]
+    const service = track(new DeviceService(new SerialManager(backend)))
+    await service.startWatching()
+    expect(service.getStatus().state).toBe('disconnected')
   })
 
   it('USB 拔出后进入断开错误', async () => {
