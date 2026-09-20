@@ -19,8 +19,9 @@ export function parseGrblLine(rawLine: string): GrblMessage {
   const setting = /^(\$\d+)\s*=\s*(-?\d+(?:\.\d+)?)/.exec(line)
   if (setting) return { kind: 'setting', key: setting[1], value: Number(setting[2]) }
 
-  const welcome = /^Grbl\s+(\S+)/i.exec(line)
-  if (welcome) return { kind: 'version', version: welcome[1] }
+  const welcome = /^(GrblHAL|Grbl|FluidNC)\s+(\S+)/i.exec(line)
+  if (welcome) return { kind: 'version', version: welcome[2] }
+  if (/^FluidNC\b/i.test(line)) return { kind: 'version', version: 'FluidNC' }
 
   const ver = /^\[VER:\s*([^:\]]+)/i.exec(line)
   if (ver) return { kind: 'version', version: shortenVersion(ver[1].trim()) }

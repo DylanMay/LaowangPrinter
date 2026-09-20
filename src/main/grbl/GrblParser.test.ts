@@ -45,6 +45,14 @@ describe('GrblParser', () => {
       kind: 'version',
       version: '1.1h',
     })
+    expect(parseGrblLine('GrblHAL 1.1f [\'$\' for help]')).toEqual({
+      kind: 'version',
+      version: '1.1f',
+    })
+    expect(parseGrblLine('FluidNC v3.7.2')).toEqual({
+      kind: 'version',
+      version: 'v3.7.2',
+    })
     expect(parseGrblLine('[VER:1.1h.20190825:]')).toEqual({
       kind: 'version',
       version: '1.1h',

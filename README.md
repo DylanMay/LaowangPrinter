@@ -162,7 +162,7 @@ npx electron-builder --mac --config electron-builder.yml
 xattr -cr /Applications/老王打印机.app
 ```
 
-4. CH340 / ESP32 控制板在 macOS 上会被 DTR 按住复位，软件打开串口后会松开 DTR/RTS，并使用 `/dev/cu.*`（不用会卡住的 `/dev/tty.*`）。若仍无反应，换原装 USB 线，不要用只供电的充电线。
+4. CH340 / ESP32 控制板在 macOS 上会被 DTR 按住复位，软件打开串口后会松开 DTR/RTS，并使用 `/dev/cu.*`（不用会卡住的 `/dev/tty.*`）。点击「连接设备」时还会扫描 `/dev` 里其余串口，并依次尝试 115200 / 9600 / 250000。若仍无反应，换原装 USB 线，不要用只供电的充电线。部分 CH340 板需要安装厂家的 USB 驱动后才会出现串口。
 5. 在「设置 → 高级」里看通信记录：有欢迎信息或设置行说明已经连上固件；完全空白则是系统没把串口交给本应用。
 
 ## 空载测试
