@@ -232,7 +232,9 @@ export function prepareLines(lines: string[], dryRun: boolean): string[] {
 }
 
 function isLaserOn(line: string): boolean {
-  return /^M3\b|^M4\b/i.test(line.trim())
+  if (/^M3\b|^M4\b/i.test(line.trim())) return true
+  const spindle = /\bS([0-9.]+)/i.exec(line)
+  return Boolean(spindle && Number(spindle[1]) > 0)
 }
 
 function timeoutFor(line: string): number {

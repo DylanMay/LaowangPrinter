@@ -25,6 +25,8 @@ describe('傻瓜化主流程', () => {
     expect(job).not.toMatch(/sentLines/)
     expect(job).not.toMatch(/stepLabel/)
     expect(job).toContain('startJob(true)')
+    expect(job).toContain('COPY.dryRunDone')
+    expect(job).toContain("setWorkMode('engrave')")
   })
 
   it('首次引导五步，并持久化完成标记', () => {

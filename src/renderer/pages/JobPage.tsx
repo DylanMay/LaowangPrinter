@@ -24,6 +24,7 @@ export function JobPage() {
   const pauseJob = useAppStore((state) => state.pauseJob)
   const resumeJob = useAppStore((state) => state.resumeJob)
   const resetJob = useAppStore((state) => state.resetJob)
+  const setWorkMode = useAppStore((state) => state.setWorkMode)
   const askStop = useAppStore((state) => state.askStop)
   const requestConnect = useAppStore((state) => state.requestConnect)
   const job = useAppStore((state) => state.jobProgress)
@@ -73,11 +74,19 @@ export function JobPage() {
           />
         ) : state === 'completed' ? (
           <ResultBar
-            title={COPY.jobCompleted}
-            detail={`${COPY.elapsedLabel} ${formatDuration(job.elapsedSeconds)}`}
-            primary={COPY.engraveAgain}
+            title={dry ? COPY.dryRunDone : COPY.jobCompleted}
+            detail={dry ? COPY.dryRunDoneHint : `${COPY.elapsedLabel} ${formatDuration(job.elapsedSeconds)}`}
+            primary={dry ? COPY.switchToEngrave : COPY.engraveAgain}
             secondary={COPY.backHome}
-            onPrimary={resetJob}
+            onPrimary={
+              dry
+                ? () => {
+                    setWorkMode('engrave')
+                    resetJob()
+                    goWorkspace()
+                  }
+                : resetJob
+            }
             onSecondary={goHome}
           />
         ) : state === 'error' ? (

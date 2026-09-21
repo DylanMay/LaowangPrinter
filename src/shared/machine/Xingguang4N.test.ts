@@ -1,4 +1,4 @@
-import { XINGGUANG_4N_HEIGHT_MM, XINGGUANG_4N_WIDTH_MM, STOCK_GRBL_TRAVEL_MM } from './Xingguang4N'
+import { XINGGUANG_4N_HEIGHT_MM, XINGGUANG_4N_WIDTH_MM, STOCK_GRBL_TRAVEL_MM, tuneCutParams } from './Xingguang4N'
 import { describe, expect, it } from 'vitest'
 
 describe('星光4N', () => {
@@ -6,5 +6,15 @@ describe('星光4N', () => {
     expect(XINGGUANG_4N_WIDTH_MM).toBe(50)
     expect(XINGGUANG_4N_HEIGHT_MM).toBe(50)
     expect(STOCK_GRBL_TRAVEL_MM).toBe(250)
+  })
+
+  it('小床把木板标准档调到可出光的速度和功率，大床不改', () => {
+    const wood = { speed: 1000, power: 20 }
+    expect(tuneCutParams(wood, { widthMm: 300, heightMm: 200 })).toEqual(wood)
+    expect(tuneCutParams(wood, { widthMm: 50, heightMm: 50 })).toEqual({ speed: 250, power: 60 })
+    expect(tuneCutParams({ speed: 1500, power: 15 }, { widthMm: 42, heightMm: 42 })).toEqual({
+      speed: 375,
+      power: 50,
+    })
   })
 })
