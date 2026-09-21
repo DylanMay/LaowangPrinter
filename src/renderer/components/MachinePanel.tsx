@@ -2,8 +2,9 @@ import { COPY } from '@shared/copy'
 import type { JogFeed } from '@shared/types/machine'
 import { JOG_FEEDS, JOG_STEPS } from '@shared/types/machine'
 import { formatSizeMm } from '@shared/types/workspace'
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { jobGcode } from '../gcode/jobGcode'
+import { DebugPanel } from './DebugPanel'
 import { useAppStore } from '../store/appStore'
 
 const SPEED_LABELS: Record<JogFeed, string> = {
@@ -13,8 +14,6 @@ const SPEED_LABELS: Record<JogFeed, string> = {
   3000: COPY.speedFaster,
 }
 
-type PanelView = 'settings' | 'machine' | 'commands' | 'log'
-
 export function MachinePanel() {
   const connected = useAppStore((state) => state.deviceState === 'connected')
   const jogStep = useAppStore((state) => state.jogStep)
@@ -22,6 +21,8 @@ export function MachinePanel() {
   const setJogStep = useAppStore((state) => state.setJogStep)
   const setJogFeed = useAppStore((state) => state.setJogFeed)
   const closePanel = useAppStore((state) => state.closePanel)
+  const view = useAppStore((state) => state.panelView)
+  const setView = useAppStore((state) => state.setPanelView)
   const jog = useAppStore((state) => state.jog)
   const home = useAppStore((state) => state.home)
   const activity = useAppStore((state) => state.activity)
@@ -39,7 +40,6 @@ export function MachinePanel() {
   const workMode = useAppStore((state) => state.workMode)
   const advanced = useAppStore((state) => state.advanced)
   const loadAdvanced = useAppStore((state) => state.loadAdvanced)
-  const [view, setView] = useState<PanelView>('settings')
   const jobBusy = jobState === 'running' || jobState === 'paused'
   const motionBusy = Boolean(activity) || jobBusy
   const gcode = jobGcode({
@@ -64,8 +64,10 @@ export function MachinePanel() {
 
   return (
     <div className="absolute inset-0 z-10 flex items-center justify-center bg-[rgba(28,24,20,0.35)] px-6">
-      <div className="max-h-[680px] w-[520px] max-w-full overflow-auto rounded-3xl border border-line bg-surface p-6 shadow-[0_12px_40px_rgba(28,24,20,0.08)]">
-        {view === 'commands' ? (
+      <div className="max-h-[720px] w-[560px] max-w-full overflow-auto rounded-3xl border border-line bg-surface p-6 shadow-[0_12px_40px_rgba(28,24,20,0.08)]">
+        {view === 'debug' ? (
+          <DebugPanel onBack={() => setView('settings')} />
+        ) : view === 'commands' ? (
           <div className="flex flex-col gap-3">
             <h2 className="text-center text-xl font-semibold">{COPY.pathCommandsTitle}</h2>
             <p className="text-center text-[13px] text-muted">{COPY.pathCommandsHint}</p>
@@ -177,6 +179,7 @@ export function MachinePanel() {
             currentLine={jobProgress.currentLine}
             onCommands={() => setView('commands')}
             onLog={() => setView('log')}
+            onDebug={() => setView('debug')}
             onMachine={() => setView('machine')}
             onDone={closePanel}
           />
@@ -196,6 +199,7 @@ function SettingsView({
   currentLine,
   onCommands,
   onLog,
+  onDebug,
   onMachine,
   onDone,
 }: {
@@ -208,6 +212,7 @@ function SettingsView({
   currentLine: string
   onCommands: () => void
   onLog: () => void
+  onDebug: () => void
   onMachine: () => void
   onDone: () => void
 }) {
@@ -264,7 +269,14 @@ function SettingsView({
           onClick={onLog}
           className="h-10 rounded-xl border border-line px-4 text-sm font-semibold"
         >
-          {COPY.serialLogTitle}
+            {COPY.serialLogTitle}
+          </button>
+        <button
+          type="button"
+          onClick={onDebug}
+          className="h-10 rounded-xl border border-line px-4 text-sm font-semibold"
+        >
+          {COPY.debugTitle}
         </button>
         <button
           type="button"

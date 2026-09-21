@@ -1,7 +1,7 @@
 import { APP_NAME, COPY } from '@shared/copy'
 import type { DeviceStatus } from '@shared/types/state'
 import type { JobProgress } from '@shared/types/job'
-import { app, BrowserWindow, dialog, ipcMain } from 'electron'
+import { app, BrowserWindow, clipboard, dialog, ipcMain } from 'electron'
 import type { DeviceService } from '../device/DeviceService'
 import { FileService } from '../file/FileService'
 import type { JobService } from '../job/JobService'
@@ -25,6 +25,15 @@ export function registerIpcHandlers(
   ipcMain.handle('device:getStatus', () => device.getStatus())
   ipcMain.handle('machine:getConfig', () => device.getConfig())
   ipcMain.handle('machine:getAdvanced', () => device.getAdvanced())
+  ipcMain.handle('machine:getDiagnostics', () =>
+    device.getDiagnostics(app.getVersion(), job.getProgress()),
+  )
+  ipcMain.handle('machine:copyDiagnostics', () => {
+    const snap = device.getDiagnostics(app.getVersion(), job.getProgress())
+    clipboard.writeText(snap.text)
+    return true
+  })
+  ipcMain.handle('machine:unlock', () => device.unlock())
   ipcMain.handle('machine:setSize', (_event, widthMm: number, heightMm: number) =>
     device.setSize(widthMm, heightMm),
   )

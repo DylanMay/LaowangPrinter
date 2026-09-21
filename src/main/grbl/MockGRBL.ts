@@ -135,6 +135,11 @@ export class MockGRBL {
       this.replyOk()
       return
     }
+    if (line === '$X') {
+      this.state = 'Idle'
+      this.replyOk()
+      return
+    }
     const set = /^\$(\d+)=(-?\d+(?:\.\d+)?)$/.exec(line)
     if (set) {
       const id = Number(set[1])

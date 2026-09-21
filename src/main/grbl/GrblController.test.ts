@@ -143,6 +143,20 @@ describe('GrblController', () => {
     await serial.disconnect()
   })
 
+  it('小床或出厂行程时关掉误报限位', async () => {
+    const backend = createMockEngraverBackend({ settings: { 20: 1, 21: 1, 130: 250, 131: 250 } })
+    const serial = new SerialManager(backend)
+    const controller = new GrblController(serial)
+    running.push(controller)
+    await serial.connect('mock://engraver')
+    await controller.identify()
+    const blob = serialWrites(backend)
+    expect(blob).toMatch(/\$20=0/)
+    expect(blob).toMatch(/\$21=0/)
+    expect(controller.lastAlarmCode).toBeNull()
+    await serial.disconnect()
+  })
+
   it('没有激光模式参数的旧固件仍能完成识别', async () => {
     const backend = createMockEngraverBackend({ unknownSettings: [32] })
     const serial = new SerialManager(backend)

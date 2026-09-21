@@ -24,6 +24,7 @@ import { create } from 'zustand'
 
 type ConfirmKind = 'reset' | 'stop' | null
 type AppPage = 'home' | 'workspace' | 'job'
+export type PanelView = 'settings' | 'machine' | 'commands' | 'log' | 'debug'
 
 type AppStore = {
   page: AppPage
@@ -37,6 +38,7 @@ type AppStore = {
   workArea: WorkArea | null
   maxPower: number
   panelOpen: boolean
+  panelView: PanelView
   previewOpen: boolean
   confirm: ConfirmKind
   jogStep: JogStep
@@ -60,14 +62,17 @@ type AppStore = {
   openSvg: () => Promise<void>
   importDropped: (file: File) => Promise<void>
   showNotice: (message: string) => void
-  openPanel: () => void
+  openPanel: (view?: PanelView) => void
   closePanel: () => void
+  setPanelView: (view: PanelView) => void
   loadAdvanced: () => Promise<void>
   setJogStep: (step: JogStep) => void
   setJogFeed: (feed: JogFeed) => void
   jog: (axis: 'X' | 'Y', distanceMm: number) => Promise<void>
   home: () => Promise<void>
   testMove: () => Promise<void>
+  unlockMachine: () => Promise<void>
+  copyDiagnostics: () => Promise<boolean>
   askReset: () => void
   askStop: () => void
   cancelConfirm: () => void
@@ -156,6 +161,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   workArea: null,
   maxPower: 1000,
   panelOpen: false,
+  panelView: 'settings',
   previewOpen: false,
   confirm: null,
   jogStep: 1,
@@ -271,11 +277,12 @@ export const useAppStore = create<AppStore>((set, get) => ({
     }
   },
   showNotice: (message) => set({ notice: message }),
-  openPanel: () => {
-    set({ panelOpen: true, confirm: null })
+  openPanel: (view = 'settings') => {
+    set({ panelOpen: true, panelView: view, confirm: null })
     void get().loadAdvanced()
   },
-  closePanel: () => set({ panelOpen: false, confirm: null }),
+  closePanel: () => set({ panelOpen: false, panelView: 'settings', confirm: null }),
+  setPanelView: (panelView) => set({ panelView }),
   loadAdvanced: async () => {
     if (!window.machine?.getAdvanced) return
     try {
@@ -304,6 +311,19 @@ export const useAppStore = create<AppStore>((set, get) => ({
     mergeStatus(set, () => COPY.testMoveOk, status)
     if (status.state === 'connected' && !status.errorMessage) {
       set({ moveTested: true, notice: COPY.testMoveOk })
+    }
+  },
+  unlockMachine: async () => {
+    if (!window.machine?.unlock) return
+    const status = await window.machine.unlock()
+    mergeStatus(set, () => null, status)
+  },
+  copyDiagnostics: async () => {
+    if (!window.machine?.copyDiagnostics) return false
+    try {
+      return await window.machine.copyDiagnostics()
+    } catch {
+      return false
     }
   },
   askReset: () => set({ confirm: 'reset' }),

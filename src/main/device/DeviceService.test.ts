@@ -157,6 +157,19 @@ describe('DeviceService', () => {
     expect(service.getStatus().state).toBe('disconnected')
   })
 
+  it('异常时保持连接，调试信息包含异常码', async () => {
+    const backend = createMockEngraverBackend()
+    const service = track(new DeviceService(new SerialManager(backend)))
+    await service.connect()
+    backend.firmware.simulateAlarm(1)
+    const status = service.getStatus()
+    expect(status.state).toBe('connected')
+    expect(status.errorMessage).toContain('异常')
+    expect(service.getDiagnostics('0.1.0').text).toContain('ALARM:1')
+    const unlocked = await service.unlock()
+    expect(unlocked.errorMessage).toBeUndefined()
+  })
+
   it('USB 拔出后进入断开错误', async () => {
     const backend = createMockEngraverBackend()
     const manager = new SerialManager(backend)

@@ -1,6 +1,8 @@
 import { XINGGUANG_4N_BAUD_RATES } from '@shared/machine/Xingguang4N'
 import { formatUserError, toAppError, USER_ERRORS } from '@shared/errors/appError'
-import type { AdvancedSnapshot, MachineConfig } from '@shared/types/machine'
+import { formatDiagnostics } from '@shared/debug/formatDiagnostics'
+import type { AdvancedSnapshot, DiagnosticsSnapshot, MachineConfig } from '@shared/types/machine'
+import type { JobProgress } from '@shared/types/job'
 import type { DeviceState, DeviceStatus, PublicDevice } from '@shared/types/state'
 import { GrblController } from '../grbl/GrblController'
 import { readDarwinUsbTree, usbLooksLikeSerialAdapter } from '../serial/darwinUsb'
@@ -46,7 +48,6 @@ export class DeviceService {
     })
     this.grbl.on('alarm', (error) => {
       this.errorMessage = formatUserError(toAppError(error))
-      this.state = 'error'
       this.emit()
     })
     this.grbl.on('status', () => {
@@ -96,6 +97,22 @@ export class DeviceService {
       maxPower: config?.maxPower ?? 1000,
       laserMode: Boolean(config?.laserMode),
       serialLog: this.serial.getLog(),
+    }
+  }
+
+  getDiagnostics(appVersion: string, job?: JobProgress): DiagnosticsSnapshot {
+    return {
+      text: formatDiagnostics({
+        appVersion,
+        status: this.getStatus(),
+        config: this.grbl.config,
+        portPath: this.serial.connectedPath,
+        baudRate: this.serial.baudRate,
+        lastAlarm: this.grbl.lastAlarmCode,
+        lastError: this.grbl.lastErrorCode,
+        serialLog: this.serial.getLog(),
+        job,
+      }),
     }
   }
 
@@ -174,6 +191,19 @@ export class DeviceService {
 
   async setSize(widthMm: number, heightMm: number): Promise<DeviceStatus> {
     this.grbl.setWorkspaceSize(widthMm, heightMm)
+    await this.grbl.syncTravel(widthMm, heightMm)
+    this.emit()
+    return this.getStatus()
+  }
+
+  async unlock(): Promise<DeviceStatus> {
+    if (this.state !== 'connected') return this.getStatus()
+    try {
+      await this.grbl.unlock()
+      this.errorMessage = null
+    } catch (error) {
+      this.errorMessage = formatUserError(toAppError(error))
+    }
     this.emit()
     return this.getStatus()
   }

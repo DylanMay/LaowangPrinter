@@ -1,5 +1,5 @@
 import { EventEmitter } from 'node:events'
-import { STOCK_GRBL_TRAVEL_MM } from '@shared/machine/Xingguang4N'
+import { STOCK_GRBL_TRAVEL_MM, COMPACT_BED_MAX_MM } from '@shared/machine/Xingguang4N'
 import type { JogParams, MachineConfig } from '@shared/types/machine'
 import type { MachineState } from '@shared/types/state'
 import { SerialManager } from '../serial/SerialManager'
@@ -31,6 +31,8 @@ export class GrblController {
   private chain: Promise<void> = Promise.resolve()
   private pollTimer: ReturnType<typeof setInterval> | null = null
   private lastReport: GrblStatusReport | null = null
+  private lastAlarm: string | null = null
+  private lastError: string | null = null
   config: MachineConfig | null = null
 
   constructor(private readonly serial: SerialManager) {
@@ -49,6 +51,14 @@ export class GrblController {
 
   get lastStatus(): GrblStatusReport | null {
     return this.lastReport
+  }
+
+  get lastAlarmCode(): string | null {
+    return this.lastAlarm
+  }
+
+  get lastErrorCode(): string | null {
+    return this.lastError
   }
 
   async identify(): Promise<MachineConfig> {
@@ -129,6 +139,18 @@ export class GrblController {
     if (!welcomed) throw new NotGrblError()
   }
 
+  async unlock(): Promise<void> {
+    await this.sendLine('$X')
+  }
+
+  async syncTravel(widthMm: number, heightMm: number): Promise<void> {
+    if (!isValidSize(widthMm) || !isValidSize(heightMm)) {
+      throw new Error('Invalid size')
+    }
+    await this.trySetSetting(130, widthMm)
+    await this.trySetSetting(131, heightMm)
+  }
+
   async testMove(): Promise<void> {
     await this.jog({ axis: 'X', distanceMm: 1, feed: 100 })
   }
@@ -192,6 +214,7 @@ export class GrblController {
     }
     if (message.kind === 'error') {
       const error = new GrblCommandError(message.code)
+      this.lastError = `error:${message.code}`
       this.rejectOk(error)
       if (this.emitter.listenerCount('error') > 0) {
         this.emitter.emit('error', error)
@@ -200,6 +223,7 @@ export class GrblController {
     }
     if (message.kind === 'alarm') {
       const error = new GrblAlarmError(message.code)
+      this.lastAlarm = `ALARM:${message.code}`
       this.rejectOk(error)
       this.lastReport = {
         state: 'Alarm',
@@ -263,6 +287,18 @@ export class GrblController {
     if (laserMode === undefined || laserMode === 0) {
       await this.trySetSetting(32, 1)
     }
+    if (this.isCompactOrUnsetMachine()) {
+      if ((this.settings.get(20) ?? 0) !== 0) await this.trySetSetting(20, 0)
+      if ((this.settings.get(21) ?? 0) !== 0) await this.trySetSetting(21, 0)
+    }
+  }
+
+  private isCompactOrUnsetMachine(): boolean {
+    const x = this.settings.get(130)
+    const y = this.settings.get(131)
+    if (x === undefined || y === undefined) return true
+    if (x === STOCK_GRBL_TRAVEL_MM || y === STOCK_GRBL_TRAVEL_MM) return true
+    return x <= COMPACT_BED_MAX_MM || y <= COMPACT_BED_MAX_MM
   }
 
   private async trySetSetting(id: number, value: number): Promise<void> {

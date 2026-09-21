@@ -38,6 +38,10 @@ describe('MockSerialPort / SerialManager', () => {
     expect(manager.getLog().some((line) => line.includes('ok'))).toBe(true)
     expect(manager.getLog().some((line) => line.includes('?'))).toBe(false)
     expect(manager.getLog().some((line) => line.includes('<Idle'))).toBe(false)
+    backend.opened.get(path)?.simulateData(Buffer.from('<Alarm|MPos:0.000,0.000,0.000>\n'))
+    backend.opened.get(path)?.simulateData(Buffer.from('ALARM:1\n'))
+    expect(manager.getLog().some((line) => line.includes('<Alarm'))).toBe(true)
+    expect(manager.getLog().some((line) => line.includes('ALARM:1'))).toBe(true)
     await manager.disconnect()
   })
 

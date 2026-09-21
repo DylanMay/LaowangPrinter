@@ -10,7 +10,7 @@ type SerialEvents = {
   disconnected: [{ reason: 'user' | 'unplug' }]
 }
 
-const MAX_LOG = 200
+const MAX_LOG = 800
 
 export class SerialManager {
   private readonly emitter = new EventEmitter()
@@ -126,6 +126,8 @@ function shouldLog(text: string, direction: '>' | '<'): boolean {
   const value = text.trim()
   if (!value) return false
   if (direction === '>' && value === '?') return false
-  if (direction === '<' && value.startsWith('<') && value.endsWith('>')) return false
+  if (direction === '<' && value.startsWith('<') && value.endsWith('>')) {
+    return /<(Alarm|Hold|Door|Check|Sleep)/i.test(value)
+  }
   return true
 }
