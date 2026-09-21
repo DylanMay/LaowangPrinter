@@ -10,11 +10,11 @@ export const XINGGUANG_4N_BAUD_RATES = [115200, 57600, 9600, 250000] as const
 
 /** 星光一类小床二极管大约 250–500mW，桌面机 20%/F1000 几乎刻不出痕迹。 */
 export const COMPACT_BED_MAX_MM = 60
-const COMPACT_SPEED_SCALE = 0.25
-const COMPACT_POWER_SCALE = 3
-const COMPACT_MIN_SPEED = 150
-const COMPACT_MIN_POWER = 50
-const COMPACT_MAX_POWER = 90
+const COMPACT_SPEED_SCALE = 0.2
+const COMPACT_POWER_SCALE = 4
+const COMPACT_MIN_SPEED = 120
+const COMPACT_MIN_POWER = 60
+const COMPACT_MAX_POWER = 100
 
 export function isCompactDiodeBed(workArea: { widthMm: number; heightMm: number }): boolean {
   return Math.max(workArea.widthMm, workArea.heightMm) <= COMPACT_BED_MAX_MM

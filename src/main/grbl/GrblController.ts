@@ -64,6 +64,7 @@ export class GrblController {
     }
     await this.sendLine('$$')
     await this.sendLine('$G')
+    await this.prepareLaserSettings()
     this.config = this.buildConfig()
     this.startPolling()
     this.emitter.emit('config', this.config)
@@ -192,7 +193,9 @@ export class GrblController {
     if (message.kind === 'error') {
       const error = new GrblCommandError(message.code)
       this.rejectOk(error)
-      this.emitter.emit('error', error)
+      if (this.emitter.listenerCount('error') > 0) {
+        this.emitter.emit('error', error)
+      }
       return
     }
     if (message.kind === 'alarm') {
@@ -232,14 +235,42 @@ export class GrblController {
     return {
       widthMm,
       heightMm,
-      maxPower: this.settings.get(30) ?? 1000,
-      minPower: this.settings.get(31) ?? 0,
+      maxPower: resolveMaxPower(this.settings.get(30)),
+      minPower: resolveMinPower(this.settings.get(31)),
       laserMode: (this.settings.get(32) ?? 0) !== 0,
       grblVersion: this.version ?? '',
       firmware: this.version ? `Grbl ${this.version}` : '',
       settings: Object.fromEntries(this.settings),
       parserState: this.parserState,
       needsSizeSetup: widthMm === null || heightMm === null,
+    }
+  }
+
+  /**
+   * 星光一类固件常把 $31 设成和 $30 一样。激光模式下 S 低于下限时 PWM 为 0，表现就是能动但完全不出光。
+   * 这是激光机，连接后把下限清零并打开激光模式。旧 GRBL-M3 没有 $32 时忽略错误。
+   */
+  private async prepareLaserSettings(): Promise<void> {
+    const maxPower = resolveMaxPower(this.settings.get(30))
+    const minPower = this.settings.get(31)
+    const laserMode = this.settings.get(32)
+    if (this.settings.get(30) !== maxPower) {
+      await this.trySetSetting(30, maxPower)
+    }
+    if (minPower === undefined || minPower > 0) {
+      await this.trySetSetting(31, 0)
+    }
+    if (laserMode === undefined || laserMode === 0) {
+      await this.trySetSetting(32, 1)
+    }
+  }
+
+  private async trySetSetting(id: number, value: number): Promise<void> {
+    try {
+      await this.sendLine(`$${id}=${value}`)
+      this.settings.set(id, value)
+    } catch {
+      // GRBL-M3 可能没有 $32；写失败时继续用 M3 开光。
     }
   }
 
@@ -315,6 +346,14 @@ function resolveAxisTravel(value: number | undefined): number | null {
 
 function positive(value: number | undefined): number | null {
   return value !== undefined && value > 0 ? value : null
+}
+
+function resolveMaxPower(value: number | undefined): number {
+  return value !== undefined && Number.isFinite(value) && value > 0 ? value : 1000
+}
+
+function resolveMinPower(value: number | undefined): number {
+  return value !== undefined && Number.isFinite(value) && value >= 0 ? value : 0
 }
 
 function isValidSize(value: number): boolean {

@@ -18,7 +18,9 @@ export type GenerateGcodeInput = {
 }
 
 export function spindleSpeed(maxPower: number, powerPercent: number): number {
-  return Math.round((maxPower * powerPercent) / 100)
+  const max = maxPower > 0 ? maxPower : 1000
+  const percent = Math.min(100, Math.max(0, powerPercent))
+  return Math.round((max * percent) / 100)
 }
 
 export function applyDryRunSafety(lines: string[]): string[] {
@@ -58,7 +60,12 @@ export function generateGcode(input: GenerateGcodeInput): GCodeDocument {
 
   const ensureLaser = (on: boolean) => {
     if (on === laserOn) return
-    lines.push(on ? `M3 S${speed}` : 'M5')
+    if (on) {
+      lines.push(`M3 S${speed}`)
+      lines.push(`S${speed}`)
+    } else {
+      lines.push('M5')
+    }
     laserOn = on
   }
 

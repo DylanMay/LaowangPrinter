@@ -519,7 +519,7 @@ async function syncMaxPower(set: (partial: Partial<AppStore>) => void): Promise<
   if (!window.machine) return
   try {
     const config = await window.machine.getConfig()
-    if (config?.maxPower) set({ maxPower: config.maxPower })
+    if (config && config.maxPower > 0) set({ maxPower: config.maxPower })
   } catch {
     set({ maxPower: 1000 })
   }

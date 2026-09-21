@@ -11,10 +11,10 @@ describe('星光4N', () => {
   it('小床把木板标准档调到可出光的速度和功率，大床不改', () => {
     const wood = { speed: 1000, power: 20 }
     expect(tuneCutParams(wood, { widthMm: 300, heightMm: 200 })).toEqual(wood)
-    expect(tuneCutParams(wood, { widthMm: 50, heightMm: 50 })).toEqual({ speed: 250, power: 60 })
+    expect(tuneCutParams(wood, { widthMm: 50, heightMm: 50 })).toEqual({ speed: 200, power: 80 })
     expect(tuneCutParams({ speed: 1500, power: 15 }, { widthMm: 42, heightMm: 42 })).toEqual({
-      speed: 375,
-      power: 50,
+      speed: 300,
+      power: 60,
     })
   })
 })

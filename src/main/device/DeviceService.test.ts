@@ -69,6 +69,27 @@ describe('DeviceService', () => {
     expect(next.workArea).toEqual({ widthMm: 280, heightMm: 160 })
   })
 
+  it('固件最小功率过高时仍能连接，并打开激光模式', async () => {
+    const service = track(
+      new DeviceService(
+        new SerialManager(createMockEngraverBackend({ settings: { 31: 1000, 32: 0 } })),
+      ),
+    )
+    const status = await service.connect()
+    expect(status.state).toBe('connected')
+    expect(service.getConfig()?.minPower).toBe(0)
+    expect(service.getConfig()?.laserMode).toBe(true)
+  })
+
+  it('旧固件没有激光模式参数时仍能连接', async () => {
+    const service = track(
+      new DeviceService(new SerialManager(createMockEngraverBackend({ unknownSettings: [32] }))),
+    )
+    const status = await service.connect()
+    expect(status.state).toBe('connected')
+    expect(service.getConfig()?.laserMode).toBe(false)
+  })
+
   it('行程仍是出厂默认 250 mm 时按星光4N引导填写工作区域', async () => {
     const service = track(
       new DeviceService(

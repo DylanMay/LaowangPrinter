@@ -126,7 +126,42 @@ describe('GrblController', () => {
     expect(port.written.map(asText).join('')).toMatch(/M3 S200/)
     await serial.disconnect()
   })
+
+  it('连接后把过高的最小功率清零并打开激光模式', async () => {
+    const backend = createMockEngraverBackend({ settings: { 30: 1000, 31: 1000, 32: 0 } })
+    const serial = new SerialManager(backend)
+    const controller = new GrblController(serial)
+    running.push(controller)
+    await serial.connect('mock://engraver')
+    const config = await controller.identify()
+    expect(config.minPower).toBe(0)
+    expect(config.laserMode).toBe(true)
+    expect(config.maxPower).toBe(1000)
+    const blob = serialWrites(backend)
+    expect(blob).toMatch(/\$31=0/)
+    expect(blob).toMatch(/\$32=1/)
+    await serial.disconnect()
+  })
+
+  it('没有激光模式参数的旧固件仍能完成识别', async () => {
+    const backend = createMockEngraverBackend({ unknownSettings: [32] })
+    const serial = new SerialManager(backend)
+    const controller = new GrblController(serial)
+    running.push(controller)
+    await serial.connect('mock://engraver')
+    const config = await controller.identify()
+    expect(config.laserMode).toBe(false)
+    expect(config.minPower).toBe(0)
+    expect(config.grblVersion).toBe('1.1h')
+    await serial.disconnect()
+  })
 })
+
+function serialWrites(backend: ReturnType<typeof createMockEngraverBackend>): string {
+  const port = backend.backend.opened.get('mock://engraver')
+  if (!port) throw new Error('missing port')
+  return port.written.map(asText).join('')
+}
 
 function asText(chunk: string | Buffer): string {
   return typeof chunk === 'string' ? chunk : chunk.toString('utf8')

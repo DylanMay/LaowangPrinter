@@ -40,6 +40,7 @@ describe('GCodeGenerator', () => {
     expect(result.lines.some((line) => line.startsWith('G0 '))).toBe(true)
     expect(result.lines.some((line) => line.startsWith('G1 '))).toBe(true)
     expect(result.lines).toContain('M3 S200')
+    expect(result.lines).toContain('S200')
     expect(result.lines).toContain('M5')
     expect(result.lines.some((line) => / F1000 S200$/.test(line))).toBe(true)
     expect(result.lines.filter((line) => line.startsWith('G1 ')).every((line) => / S200$/.test(line))).toBe(true)
@@ -125,9 +126,10 @@ describe('GCodeGenerator', () => {
       thicknessMm: 3,
       effect: 'standard',
     })
-    expect(small.lines).toContain('M3 S600')
-    expect(small.lines.some((line) => / F250 S600$/.test(line))).toBe(true)
-    expect(small.estimatedTime).toBeCloseTo(28.8, 5)
+    expect(small.lines).toContain('M3 S800')
+    expect(small.lines).toContain('S800')
+    expect(small.lines.some((line) => / F200 S800$/.test(line))).toBe(true)
+    expect(small.estimatedTime).toBeCloseTo(36, 5)
 
     const desk = generateJobGcode({
       document: doc,
