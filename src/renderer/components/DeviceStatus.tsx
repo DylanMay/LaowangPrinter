@@ -10,26 +10,30 @@ export function DeviceStatus() {
   const jobState = useAppStore((state) => state.jobProgress.state)
   const dryRun = useAppStore((state) => state.jobProgress.dryRun)
   const lowPowerTest = useAppStore((state) => Boolean(state.jobProgress.lowPowerTest))
+  const openPanel = useAppStore((state) => state.openPanel)
   const connected = deviceState === 'connected'
   const detecting = deviceState === 'detecting' || deviceState === 'connecting'
-  const errored = deviceState === 'error'
+  const alarm = machineState === 'alarm'
+  const errored = deviceState === 'error' || alarm
   const label = statusLabel(deviceState, machineState, activity, notice, jobState, dryRun, lowPowerTest)
 
   return (
-    <div
+    <button
+      type="button"
+      onClick={() => openPanel(errored ? 'debug' : 'settings')}
       className={[
         'inline-flex h-8 items-center gap-2 rounded-full px-3 text-[13px]',
-        connected ? 'bg-brand-soft text-brand' : errored ? 'bg-[#f8e8e5] text-[#c4473a]' : 'bg-paper text-muted',
+        connected && !alarm ? 'bg-brand-soft text-brand' : errored ? 'bg-[#f8e8e5] text-[#c4473a]' : 'bg-paper text-muted',
       ].join(' ')}
     >
       <span
         className={[
           'h-2 w-2 rounded-full',
-          connected ? 'bg-[#2c9b6a]' : detecting ? 'animate-pulse bg-[#c4842a]' : errored ? 'bg-[#c4473a]' : 'bg-[#b0a89e]',
+          connected && !alarm ? 'bg-[#2c9b6a]' : detecting ? 'animate-pulse bg-[#c4842a]' : errored ? 'bg-[#c4473a]' : 'bg-[#b0a89e]',
         ].join(' ')}
       />
       {label}
-    </div>
+    </button>
   )
 }
 
@@ -48,6 +52,7 @@ function statusLabel(
   if (activity === 'resetting') return COPY.resetting
   if (activity === 'testing') return COPY.testingMove
   if (machineState === 'paused') return COPY.paused
+  if (machineState === 'alarm') return notice?.split('。')[0] || COPY.deviceAlarm.split('。')[0]
   if (deviceState === 'error' && notice) return notice.split('。')[0] || COPY.deviceUnplugged
   if (deviceState === 'disconnected') return COPY.deviceDisconnected
   if (deviceState === 'detecting' || deviceState === 'connecting') return COPY.deviceDetecting

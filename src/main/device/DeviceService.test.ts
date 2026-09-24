@@ -1,3 +1,4 @@
+import { COPY } from '@shared/copy'
 import { formatUserError, toAppError } from '@shared/errors/appError'
 import { DeviceService } from './DeviceService'
 import { GrblCommandError } from '../grbl/errors'
@@ -69,6 +70,27 @@ describe('DeviceService', () => {
     expect(next.workArea).toEqual({ widthMm: 280, heightMm: 160 })
   })
 
+  it('固件最小功率过高时仍能连接，并打开激光模式', async () => {
+    const service = track(
+      new DeviceService(
+        new SerialManager(createMockEngraverBackend({ settings: { 31: 1000, 32: 0 } })),
+      ),
+    )
+    const status = await service.connect()
+    expect(status.state).toBe('connected')
+    expect(service.getConfig()?.minPower).toBe(0)
+    expect(service.getConfig()?.laserMode).toBe(true)
+  })
+
+  it('旧固件没有激光模式参数时仍能连接', async () => {
+    const service = track(
+      new DeviceService(new SerialManager(createMockEngraverBackend({ unknownSettings: [32] }))),
+    )
+    const status = await service.connect()
+    expect(status.state).toBe('connected')
+    expect(service.getConfig()?.laserMode).toBe(false)
+  })
+
   it('行程仍是出厂默认 250 mm 时按星光4N引导填写工作区域', async () => {
     const service = track(
       new DeviceService(
@@ -136,6 +158,19 @@ describe('DeviceService', () => {
     expect(service.getStatus().state).toBe('disconnected')
   })
 
+  it('异常时保持连接，调试信息包含异常码', async () => {
+    const backend = createMockEngraverBackend()
+    const service = track(new DeviceService(new SerialManager(backend)))
+    await service.connect()
+    backend.firmware.simulateAlarm(1)
+    const status = service.getStatus()
+    expect(status.state).toBe('connected')
+    expect(status.errorMessage).toContain('异常')
+    expect(service.getDiagnostics('0.1.0').text).toContain('ALARM:1')
+    const unlocked = await service.unlock()
+    expect(unlocked.errorMessage).toBeUndefined()
+  })
+
   it('USB 拔出后进入断开错误', async () => {
     const backend = createMockEngraverBackend()
     const manager = new SerialManager(backend)
@@ -175,6 +210,24 @@ describe('DeviceService', () => {
     expect(blob).toContain('$J=G91 G21 Y-10 F500')
     expect(blob).toContain('$J=G91 G21 X1 F100')
     expect(blob).not.toMatch(/\bM3\b/)
+  })
+
+  it('打开激光需要确认，确认后才发送开光指令', async () => {
+    const backend = createMockEngraverBackend()
+    const service = track(new DeviceService(new SerialManager(backend)))
+    await service.connect()
+    const port = backend.backend.opened.get('mock://engraver')
+    if (!port) throw new Error('missing port')
+    const before = port.written.length
+    await expect(service.setLaser(true)).rejects.toThrow(COPY.laserOnNeedsConfirm)
+    expect(port.written.length).toBe(before)
+    const status = await service.setLaser(true, true)
+    expect(status.laserOn).toBe(true)
+    const blob = port.written.map((chunk) => (typeof chunk === 'string' ? chunk : chunk.toString('utf8'))).join('')
+    expect(blob).toMatch(/\bM3 S200\b/)
+    const off = await service.setLaser(false)
+    expect(off.laserOn).toBe(false)
+    expect(port.written.map((chunk) => (typeof chunk === 'string' ? chunk : chunk.toString('utf8'))).join('')).toMatch(/\bM5\b/)
   })
 })
 

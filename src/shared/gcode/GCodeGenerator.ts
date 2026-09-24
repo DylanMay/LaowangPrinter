@@ -1,5 +1,6 @@
 import { machineBounds, machinePaths } from '@shared/geometry/CoordinateTransformer'
 import { pathLength } from '@shared/geometry/polyline'
+import { tuneCutParams } from '@shared/machine/Xingguang4N'
 import { cutParamsFor, getMaterialPreset, type EffectLevel, type MaterialId, type MaterialPreset } from '@shared/materials/MaterialPreset'
 import type { SvgDocument } from '@shared/types/svg'
 import type { GCodeDocument } from '@shared/types/gcode'
@@ -17,11 +18,17 @@ export type GenerateGcodeInput = {
 }
 
 export function spindleSpeed(maxPower: number, powerPercent: number): number {
-  return Math.round((maxPower * powerPercent) / 100)
+  const max = maxPower > 0 ? maxPower : 1000
+  const percent = Math.min(100, Math.max(0, powerPercent))
+  return Math.round((max * percent) / 100)
 }
 
 export function applyDryRunSafety(lines: string[]): string[] {
-  const next = lines.map((line) => (/^M3\b/i.test(line.trim()) ? 'M5' : line))
+  const next = lines.map((line) => {
+    const trimmed = line.trim()
+    if (/^M3\b|^M4\b/i.test(trimmed)) return 'M5'
+    return line.replace(/\bS[0-9.]+/gi, 'S0')
+  })
   const collapsed: string[] = []
   for (const line of next) {
     if (line === 'M5' && collapsed[collapsed.length - 1] === 'M5') continue
@@ -43,7 +50,7 @@ export function generateJobGcode(input: GenerateJobInput): GCodeDocument {
 }
 
 export function generateGcode(input: GenerateGcodeInput): GCodeDocument {
-  const params = cutParamsFor(input.preset, input.effect)
+  const params = tuneCutParams(cutParamsFor(input.preset, input.effect), input.workArea)
   const speed = spindleSpeed(input.maxPower, params.power)
   const paths = machinePaths(input.document, input.placement, input.workArea)
   const lines = ['G21', 'G90']
@@ -53,7 +60,12 @@ export function generateGcode(input: GenerateGcodeInput): GCodeDocument {
 
   const ensureLaser = (on: boolean) => {
     if (on === laserOn) return
-    lines.push(on ? `M3 S${speed}` : 'M5')
+    if (on) {
+      lines.push(`M3 S${speed}`)
+      lines.push(`S${speed}`)
+    } else {
+      lines.push('M5')
+    }
     laserOn = on
   }
 
@@ -72,7 +84,7 @@ export function generateGcode(input: GenerateGcodeInput): GCodeDocument {
       if (samePoint(last, point)) continue
       cuttingMm += pathLength([last!, point])
       const feed = i === 1 ? ` F${Math.round(params.speed)}` : ''
-      lines.push(`G1 X${fmt(point.x)} Y${fmt(point.y)}${feed}`)
+      lines.push(`G1 X${fmt(point.x)} Y${fmt(point.y)}${feed} S${speed}`)
       last = point
     }
   }

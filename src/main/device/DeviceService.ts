@@ -1,8 +1,12 @@
 import { XINGGUANG_4N_BAUD_RATES } from '@shared/machine/Xingguang4N'
+import { COPY } from '@shared/copy'
 import { formatUserError, toAppError, USER_ERRORS } from '@shared/errors/appError'
-import type { AdvancedSnapshot, MachineConfig } from '@shared/types/machine'
+import { formatDiagnostics } from '@shared/debug/formatDiagnostics'
+import type { AdvancedSnapshot, DiagnosticsSnapshot, MachineConfig } from '@shared/types/machine'
+import type { JobProgress } from '@shared/types/job'
 import type { DeviceState, DeviceStatus, PublicDevice } from '@shared/types/state'
 import { GrblController } from '../grbl/GrblController'
+import { readDarwinUsbTree, usbLooksLikeSerialAdapter } from '../serial/darwinUsb'
 import { discoverPorts, likelyPorts, toCalloutPath } from '../serial/portFilter'
 import { isBaudRate } from '../serial/errors'
 import { SerialManager } from '../serial/SerialManager'
@@ -12,6 +16,8 @@ const DISPLAY_NAME = '我的雕刻机'
 const WATCH_MS = 2000
 const UNRECOGNIZED =
   '找到了 USB 设备，但无法识别为雕刻机。请关掉其他雕刻软件，拔掉 USB 再插上后重试。'
+const NEED_DRIVER =
+  '电脑已经看到雕刻机，但还不能通信。驱动窗口点 Install 没反应时，请先到系统设置打开「驱动程序扩展」，再点 Install。'
 
 export class DeviceService {
   private state: DeviceState = 'disconnected'
@@ -43,7 +49,6 @@ export class DeviceService {
     })
     this.grbl.on('alarm', (error) => {
       this.errorMessage = formatUserError(toAppError(error))
-      this.state = 'error'
       this.emit()
     })
     this.grbl.on('status', () => {
@@ -70,6 +75,7 @@ export class DeviceService {
       machineState: this.activity === 'homing' ? 'homing' : this.grbl.machineState,
       needsSizeSetup: this.state === 'connected' && Boolean(config?.needsSizeSetup),
       activity: this.activity,
+      laserOn: this.grbl.laserOn,
       workArea:
         widthMm && heightMm
           ? { widthMm, heightMm }
@@ -93,6 +99,22 @@ export class DeviceService {
       maxPower: config?.maxPower ?? 1000,
       laserMode: Boolean(config?.laserMode),
       serialLog: this.serial.getLog(),
+    }
+  }
+
+  getDiagnostics(appVersion: string, job?: JobProgress): DiagnosticsSnapshot {
+    return {
+      text: formatDiagnostics({
+        appVersion,
+        status: this.getStatus(),
+        config: this.grbl.config,
+        portPath: this.serial.connectedPath,
+        baudRate: this.serial.baudRate,
+        lastAlarm: this.grbl.lastAlarmCode,
+        lastError: this.grbl.lastErrorCode,
+        serialLog: this.serial.getLog(),
+        job,
+      }),
     }
   }
 
@@ -129,7 +151,9 @@ export class DeviceService {
         candidates.push({ path: wanted })
       }
       if (candidates.length === 0) {
-        this.setError('NO_DEVICE')
+        this.errorMessage = await explainMissingDevice()
+        this.state = 'disconnected'
+        this.emit()
         return this.getStatus()
       }
       this.setState('connecting')
@@ -169,6 +193,34 @@ export class DeviceService {
 
   async setSize(widthMm: number, heightMm: number): Promise<DeviceStatus> {
     this.grbl.setWorkspaceSize(widthMm, heightMm)
+    await this.grbl.syncTravel(widthMm, heightMm)
+    this.emit()
+    return this.getStatus()
+  }
+
+  async unlock(): Promise<DeviceStatus> {
+    if (this.state !== 'connected') return this.getStatus()
+    try {
+      await this.grbl.unlock()
+      this.errorMessage = null
+    } catch (error) {
+      this.errorMessage = formatUserError(toAppError(error))
+    }
+    this.emit()
+    return this.getStatus()
+  }
+
+  async setLaser(on: boolean, confirmed = false): Promise<DeviceStatus> {
+    if (on && !confirmed) {
+      throw new Error(COPY.laserOnNeedsConfirm)
+    }
+    if (this.state !== 'connected') return this.getStatus()
+    try {
+      await this.grbl.setLaser(on)
+      this.errorMessage = null
+    } catch (error) {
+      this.errorMessage = formatUserError(toAppError(error))
+    }
     this.emit()
     return this.getStatus()
   }
@@ -194,13 +246,19 @@ export class DeviceService {
   }
 
   async halt(): Promise<DeviceStatus> {
+    if (this.grbl.laserOn) {
+      await this.grbl.setLaser(false).catch(() => undefined)
+    }
     await this.grbl.halt()
     this.emit()
     return this.getStatus()
   }
 
   async reset(): Promise<DeviceStatus> {
-    return this.runActivity('resetting', () => this.grbl.reset())
+    return this.runActivity('resetting', async () => {
+      this.grbl.clearLaserHeld()
+      await this.grbl.reset()
+    })
   }
 
   async testMove(): Promise<DeviceStatus> {
@@ -275,6 +333,12 @@ export class DeviceService {
 function baudsFor(path: string): BaudRate[] {
   if (path.startsWith('mock://')) return [115200]
   return XINGGUANG_4N_BAUD_RATES.filter(isBaudRate)
+}
+
+async function explainMissingDevice(): Promise<string> {
+  const tree = await readDarwinUsbTree()
+  if (usbLooksLikeSerialAdapter(tree)) return NEED_DRIVER
+  return formatUserError({ code: 'NO_DEVICE', ...USER_ERRORS.NO_DEVICE })
 }
 
 function waitWhile(condition: () => boolean, ms: number): Promise<void> {

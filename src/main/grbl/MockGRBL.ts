@@ -12,6 +12,7 @@ export type MockGrblOptions = {
   settings?: Record<number, number>
   delayOkMs?: number
   delayMotionMs?: number
+  unknownSettings?: number[]
 }
 
 const DEFAULT_SETTINGS: Record<number, number> = {
@@ -41,6 +42,7 @@ export class MockGRBL {
   holdOk = false
   spindleOn = false
   delayMotionMs = 0
+  private unknownSettings: number[]
   private port: MockGrblHost | null = null
   private lineBuf = ''
   private pendingOk: (() => void) | null = null
@@ -48,6 +50,8 @@ export class MockGRBL {
   constructor(options: MockGrblOptions = {}) {
     this.version = options.version ?? '1.1h'
     this.settings = { ...DEFAULT_SETTINGS, ...options.settings }
+    this.unknownSettings = options.unknownSettings ?? []
+    for (const id of this.unknownSettings) delete this.settings[id]
     if (options.omitTravel) {
       delete this.settings[130]
       delete this.settings[131]
@@ -131,9 +135,19 @@ export class MockGRBL {
       this.replyOk()
       return
     }
+    if (line === '$X') {
+      this.state = 'Idle'
+      this.replyOk()
+      return
+    }
     const set = /^\$(\d+)=(-?\d+(?:\.\d+)?)$/.exec(line)
     if (set) {
-      this.settings[Number(set[1])] = Number(set[2])
+      const id = Number(set[1])
+      if (this.unknownSettings.includes(id)) {
+        this.emit('error:3\r\n')
+        return
+      }
+      this.settings[id] = Number(set[2])
       this.replyOk()
       return
     }

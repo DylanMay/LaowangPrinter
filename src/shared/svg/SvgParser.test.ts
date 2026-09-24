@@ -155,4 +155,11 @@ describe('SvgParser', () => {
     )
     expect(relative.paths[0]?.points).toEqual(absolute.paths[0]?.points)
   })
+
+  it('星光4N 示例图能解析成毫米路径', () => {
+    const doc = parseSvg(readFileSync(resolve(import.meta.dirname, '../../../examples/xingguang4n-test.svg'), 'utf8'))
+    expect(doc.widthMm).toBe(40)
+    expect(doc.heightMm).toBe(40)
+    expect(doc.paths.length).toBeGreaterThan(5)
+  })
 })

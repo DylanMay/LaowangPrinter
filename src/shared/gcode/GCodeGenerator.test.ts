@@ -40,8 +40,10 @@ describe('GCodeGenerator', () => {
     expect(result.lines.some((line) => line.startsWith('G0 '))).toBe(true)
     expect(result.lines.some((line) => line.startsWith('G1 '))).toBe(true)
     expect(result.lines).toContain('M3 S200')
+    expect(result.lines).toContain('S200')
     expect(result.lines).toContain('M5')
-    expect(result.lines.some((line) => / F1000$/.test(line))).toBe(true)
+    expect(result.lines.some((line) => / F1000 S200$/.test(line))).toBe(true)
+    expect(result.lines.filter((line) => line.startsWith('G1 ')).every((line) => / S200$/.test(line))).toBe(true)
     expect(result.lines.join('\n')).not.toMatch(/react|electron|document\.createElement/i)
 
     const source = readFileSync(resolve(import.meta.dirname, 'GCodeGenerator.ts'), 'utf8')
@@ -98,11 +100,47 @@ describe('GCodeGenerator', () => {
     expect(result.lines.some((line) => /^M3\b/.test(line))).toBe(false)
     expect(result.lines).toContain('M5')
     expect(result.lines.some((line) => line.startsWith('G1 '))).toBe(true)
+    expect(result.lines.some((line) => /\bS(?!0\b)[0-9]/.test(line))).toBe(false)
     expect(applyDryRunSafety(['G21', 'M3 S200', 'G1 X1 Y1 F1000', 'M5'])).toEqual([
       'G21',
       'M5',
       'G1 X1 Y1 F1000',
       'M5',
     ])
+    expect(applyDryRunSafety(['M3 S200', 'G1 X1 Y1 F1000 S200', 'M4 S100', 'G1 X2 Y2 S51'])).toEqual([
+      'M5',
+      'G1 X1 Y1 F1000 S0',
+      'M5',
+      'G1 X2 Y2 S0',
+    ])
+  })
+
+  it('星光一类小床提高功率并放慢进给，大床仍用原预设', () => {
+    const compact = { widthMm: 50, heightMm: 50 }
+    const small = generateJobGcode({
+      document: doc,
+      placement: centerPlacement(40, 20, compact),
+      workArea: compact,
+      maxPower: 1000,
+      material: 'wood',
+      thicknessMm: 3,
+      effect: 'standard',
+    })
+    expect(small.lines).toContain('M3 S800')
+    expect(small.lines).toContain('S800')
+    expect(small.lines.some((line) => / F200 S800$/.test(line))).toBe(true)
+    expect(small.estimatedTime).toBeCloseTo(36, 5)
+
+    const desk = generateJobGcode({
+      document: doc,
+      placement: centerPlacement(40, 20, workArea),
+      workArea,
+      maxPower: 1000,
+      material: 'wood',
+      thicknessMm: 3,
+      effect: 'standard',
+    })
+    expect(desk.lines).toContain('M3 S200')
+    expect(desk.lines.some((line) => / F1000 S200$/.test(line))).toBe(true)
   })
 })

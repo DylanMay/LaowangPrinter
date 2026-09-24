@@ -25,6 +25,21 @@ describe('傻瓜化主流程', () => {
     expect(job).not.toMatch(/sentLines/)
     expect(job).not.toMatch(/stepLabel/)
     expect(job).toContain('startJob(true)')
+    expect(job).toContain('COPY.dryRunDone')
+    expect(job).toContain('COPY.debugTitle')
+    expect(job).toContain("openPanel('debug')")
+  })
+
+  it('设置里提供调试信息入口', () => {
+    const panel = readFileSync(resolve(renderer, 'components/MachinePanel.tsx'), 'utf8')
+    expect(panel).toContain('DebugPanel')
+    expect(panel).toContain('COPY.debugTitle')
+    expect(panel).toContain('COPY.laserSwitch')
+    expect(panel).toContain('askLaserOn()')
+    const debug = readFileSync(resolve(renderer, 'components/DebugPanel.tsx'), 'utf8')
+    expect(debug).toContain('getDiagnostics')
+    expect(debug).toContain('copyDiagnostics')
+    expect(debug).toContain('COPY.unlockMachine')
   })
 
   it('首次引导五步，并持久化完成标记', () => {

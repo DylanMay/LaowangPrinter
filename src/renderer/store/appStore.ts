@@ -22,8 +22,9 @@ import { checkJobSafety } from '@shared/job/SafetyChecker'
 import { jobGcode } from '../gcode/jobGcode'
 import { create } from 'zustand'
 
-type ConfirmKind = 'reset' | 'stop' | null
+type ConfirmKind = 'reset' | 'stop' | 'laser' | null
 type AppPage = 'home' | 'workspace' | 'job'
+export type PanelView = 'settings' | 'machine' | 'commands' | 'log' | 'debug'
 
 type AppStore = {
   page: AppPage
@@ -34,9 +35,11 @@ type AppStore = {
   needsSizeSetup: boolean
   machineState: MachineState
   activity: DeviceStatus['activity']
+  laserOn: boolean
   workArea: WorkArea | null
   maxPower: number
   panelOpen: boolean
+  panelView: PanelView
   previewOpen: boolean
   confirm: ConfirmKind
   jogStep: JogStep
@@ -60,14 +63,19 @@ type AppStore = {
   openSvg: () => Promise<void>
   importDropped: (file: File) => Promise<void>
   showNotice: (message: string) => void
-  openPanel: () => void
+  openPanel: (view?: PanelView) => void
   closePanel: () => void
+  setPanelView: (view: PanelView) => void
   loadAdvanced: () => Promise<void>
   setJogStep: (step: JogStep) => void
   setJogFeed: (feed: JogFeed) => void
   jog: (axis: 'X' | 'Y', distanceMm: number) => Promise<void>
   home: () => Promise<void>
   testMove: () => Promise<void>
+  setLaser: (on: boolean, confirmed?: boolean) => Promise<void>
+  askLaserOn: () => void
+  unlockMachine: () => Promise<void>
+  copyDiagnostics: () => Promise<boolean>
   askReset: () => void
   askStop: () => void
   cancelConfirm: () => void
@@ -107,6 +115,7 @@ function mergeStatus(
     needsSizeSetup: Boolean(status.needsSizeSetup),
     machineState: status.machineState ?? 'unknown',
     activity: status.activity,
+    laserOn: Boolean(status.laserOn),
     workArea: status.workArea ?? null,
     notice: status.errorMessage ?? (status.state === 'connected' ? getNotice() : null),
   })
@@ -153,9 +162,11 @@ export const useAppStore = create<AppStore>((set, get) => ({
   needsSizeSetup: false,
   machineState: 'unknown',
   activity: undefined,
+  laserOn: false,
   workArea: null,
   maxPower: 1000,
   panelOpen: false,
+  panelView: 'settings',
   previewOpen: false,
   confirm: null,
   jogStep: 1,
@@ -271,11 +282,12 @@ export const useAppStore = create<AppStore>((set, get) => ({
     }
   },
   showNotice: (message) => set({ notice: message }),
-  openPanel: () => {
-    set({ panelOpen: true, confirm: null })
+  openPanel: (view = 'settings') => {
+    set({ panelOpen: true, panelView: view, confirm: null })
     void get().loadAdvanced()
   },
-  closePanel: () => set({ panelOpen: false, confirm: null }),
+  closePanel: () => set({ panelOpen: false, panelView: 'settings', confirm: null }),
+  setPanelView: (panelView) => set({ panelView }),
   loadAdvanced: async () => {
     if (!window.machine?.getAdvanced) return
     try {
@@ -306,6 +318,20 @@ export const useAppStore = create<AppStore>((set, get) => ({
       set({ moveTested: true, notice: COPY.testMoveOk })
     }
   },
+  unlockMachine: async () => {
+    if (!window.machine?.unlock) return
+    const status = await window.machine.unlock()
+    mergeStatus(set, () => null, status)
+  },
+  copyDiagnostics: async () => {
+    if (!window.machine?.copyDiagnostics) return false
+    try {
+      return await window.machine.copyDiagnostics()
+    } catch {
+      return false
+    }
+  },
+  askLaserOn: () => set({ confirm: 'laser' }),
   askReset: () => set({ confirm: 'reset' }),
   askStop: () => set({ confirm: 'stop' }),
   cancelConfirm: () => set({ confirm: null }),
@@ -325,6 +351,21 @@ export const useAppStore = create<AppStore>((set, get) => ({
     if (kind === 'stop') {
       const status = await window.machine.stop()
       mergeStatus(set, () => get().notice, status)
+    }
+    if (kind === 'laser') {
+      await get().setLaser(true, true)
+    }
+  },
+  setLaser: async (on, confirmed = false) => {
+    if (!window.machine?.setLaser) return
+    try {
+      const status = await window.machine.setLaser(on, confirmed)
+      mergeStatus(set, () => (on ? COPY.laserArmed : COPY.laserClosed), status)
+      if (status.state === 'connected' && !status.errorMessage) {
+        set({ notice: on ? COPY.laserArmed : COPY.laserClosed, laserOn: Boolean(status.laserOn) })
+      }
+    } catch (error) {
+      set({ notice: error instanceof Error ? error.message : COPY.cannotStart })
     }
   },
   goHome: () => {
@@ -519,7 +560,7 @@ async function syncMaxPower(set: (partial: Partial<AppStore>) => void): Promise<
   if (!window.machine) return
   try {
     const config = await window.machine.getConfig()
-    if (config?.maxPower) set({ maxPower: config.maxPower })
+    if (config && config.maxPower > 0) set({ maxPower: config.maxPower })
   } catch {
     set({ maxPower: 1000 })
   }

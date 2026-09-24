@@ -1,5 +1,5 @@
 import { EventEmitter } from 'node:events'
-import { STOCK_GRBL_TRAVEL_MM } from '@shared/machine/Xingguang4N'
+import { STOCK_GRBL_TRAVEL_MM, COMPACT_BED_MAX_MM } from '@shared/machine/Xingguang4N'
 import type { JogParams, MachineConfig } from '@shared/types/machine'
 import type { MachineState } from '@shared/types/state'
 import { SerialManager } from '../serial/SerialManager'
@@ -31,6 +31,10 @@ export class GrblController {
   private chain: Promise<void> = Promise.resolve()
   private pollTimer: ReturnType<typeof setInterval> | null = null
   private lastReport: GrblStatusReport | null = null
+  private lastAlarm: string | null = null
+  private lastError: string | null = null
+  private laserHeld = false
+  private restoreLaserMode: number | null = null
   config: MachineConfig | null = null
 
   constructor(private readonly serial: SerialManager) {
@@ -51,6 +55,18 @@ export class GrblController {
     return this.lastReport
   }
 
+  get lastAlarmCode(): string | null {
+    return this.lastAlarm
+  }
+
+  get lastErrorCode(): string | null {
+    return this.lastError
+  }
+
+  get laserOn(): boolean {
+    return this.laserHeld
+  }
+
   async identify(): Promise<MachineConfig> {
     this.resetSession()
     await this.writeRealtime(Buffer.from([REALTIME_RESET]))
@@ -64,6 +80,7 @@ export class GrblController {
     }
     await this.sendLine('$$')
     await this.sendLine('$G')
+    await this.prepareLaserSettings()
     this.config = this.buildConfig()
     this.startPolling()
     this.emitter.emit('config', this.config)
@@ -126,6 +143,44 @@ export class GrblController {
     await this.writeRealtime(Buffer.from([REALTIME_RESET]))
     const welcomed = await this.waitFor(() => this.version !== null, VERSION_WAIT_MS)
     if (!welcomed) throw new NotGrblError()
+  }
+
+  async unlock(): Promise<void> {
+    await this.sendLine('$X')
+  }
+
+  async setLaser(on: boolean): Promise<void> {
+    if (on) {
+      const mode = this.settings.get(32)
+      if (mode === 1) {
+        await this.trySetSetting(32, 0)
+        this.restoreLaserMode = 1
+      }
+      const speed = Math.max(1, Math.round(resolveMaxPower(this.settings.get(30)) * 0.2))
+      await this.sendLine(`M3 S${speed}`, LINE_TIMEOUT_MS, true)
+      await this.sendLine(`S${speed}`, LINE_TIMEOUT_MS, true)
+      this.laserHeld = true
+      return
+    }
+    await this.sendLine('M5', LINE_TIMEOUT_MS, true)
+    if (this.restoreLaserMode === 1) {
+      await this.trySetSetting(32, 1)
+    }
+    this.restoreLaserMode = null
+    this.laserHeld = false
+  }
+
+  clearLaserHeld(): void {
+    this.laserHeld = false
+    this.restoreLaserMode = null
+  }
+
+  async syncTravel(widthMm: number, heightMm: number): Promise<void> {
+    if (!isValidSize(widthMm) || !isValidSize(heightMm)) {
+      throw new Error('Invalid size')
+    }
+    await this.trySetSetting(130, widthMm)
+    await this.trySetSetting(131, heightMm)
   }
 
   async testMove(): Promise<void> {
@@ -191,12 +246,16 @@ export class GrblController {
     }
     if (message.kind === 'error') {
       const error = new GrblCommandError(message.code)
+      this.lastError = `error:${message.code}`
       this.rejectOk(error)
-      this.emitter.emit('error', error)
+      if (this.emitter.listenerCount('error') > 0) {
+        this.emitter.emit('error', error)
+      }
       return
     }
     if (message.kind === 'alarm') {
       const error = new GrblAlarmError(message.code)
+      this.lastAlarm = `ALARM:${message.code}`
       this.rejectOk(error)
       this.lastReport = {
         state: 'Alarm',
@@ -232,14 +291,54 @@ export class GrblController {
     return {
       widthMm,
       heightMm,
-      maxPower: this.settings.get(30) ?? 1000,
-      minPower: this.settings.get(31) ?? 0,
+      maxPower: resolveMaxPower(this.settings.get(30)),
+      minPower: resolveMinPower(this.settings.get(31)),
       laserMode: (this.settings.get(32) ?? 0) !== 0,
       grblVersion: this.version ?? '',
       firmware: this.version ? `Grbl ${this.version}` : '',
       settings: Object.fromEntries(this.settings),
       parserState: this.parserState,
       needsSizeSetup: widthMm === null || heightMm === null,
+    }
+  }
+
+  /**
+   * 星光一类固件常把 $31 设成和 $30 一样。激光模式下 S 低于下限时 PWM 为 0，表现就是能动但完全不出光。
+   * 这是激光机，连接后把下限清零并打开激光模式。旧 GRBL-M3 没有 $32 时忽略错误。
+   */
+  private async prepareLaserSettings(): Promise<void> {
+    const maxPower = resolveMaxPower(this.settings.get(30))
+    const minPower = this.settings.get(31)
+    const laserMode = this.settings.get(32)
+    if (this.settings.get(30) !== maxPower) {
+      await this.trySetSetting(30, maxPower)
+    }
+    if (minPower === undefined || minPower > 0) {
+      await this.trySetSetting(31, 0)
+    }
+    if (laserMode === undefined || laserMode === 0) {
+      await this.trySetSetting(32, 1)
+    }
+    if (this.isCompactOrUnsetMachine()) {
+      if ((this.settings.get(20) ?? 0) !== 0) await this.trySetSetting(20, 0)
+      if ((this.settings.get(21) ?? 0) !== 0) await this.trySetSetting(21, 0)
+    }
+  }
+
+  private isCompactOrUnsetMachine(): boolean {
+    const x = this.settings.get(130)
+    const y = this.settings.get(131)
+    if (x === undefined || y === undefined) return true
+    if (x === STOCK_GRBL_TRAVEL_MM || y === STOCK_GRBL_TRAVEL_MM) return true
+    return x <= COMPACT_BED_MAX_MM || y <= COMPACT_BED_MAX_MM
+  }
+
+  private async trySetSetting(id: number, value: number): Promise<void> {
+    try {
+      await this.sendLine(`$${id}=${value}`)
+      this.settings.set(id, value)
+    } catch {
+      // GRBL-M3 可能没有 $32；写失败时继续用 M3 开光。
     }
   }
 
@@ -250,6 +349,8 @@ export class GrblController {
     this.settings = new Map()
     this.lastReport = null
     this.config = null
+    this.laserHeld = false
+    this.restoreLaserMode = null
   }
 
   private handleDisconnect(): void {
@@ -315,6 +416,14 @@ function resolveAxisTravel(value: number | undefined): number | null {
 
 function positive(value: number | undefined): number | null {
   return value !== undefined && value > 0 ? value : null
+}
+
+function resolveMaxPower(value: number | undefined): number {
+  return value !== undefined && Number.isFinite(value) && value > 0 ? value : 1000
+}
+
+function resolveMinPower(value: number | undefined): number {
+  return value !== undefined && Number.isFinite(value) && value >= 0 ? value : 0
 }
 
 function isValidSize(value: number): boolean {

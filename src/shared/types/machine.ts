@@ -40,3 +40,7 @@ export type AdvancedSnapshot = {
   laserMode: boolean
   serialLog: string[]
 }
+
+export type DiagnosticsSnapshot = {
+  text: string
+}

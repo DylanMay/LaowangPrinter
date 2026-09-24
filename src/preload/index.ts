@@ -36,6 +36,8 @@ contextBridge.exposeInMainWorld('device', {
 contextBridge.exposeInMainWorld('machine', {
   getConfig: () => ipcRenderer.invoke('machine:getConfig'),
   getAdvanced: () => ipcRenderer.invoke('machine:getAdvanced'),
+  getDiagnostics: () => ipcRenderer.invoke('machine:getDiagnostics'),
+  copyDiagnostics: () => ipcRenderer.invoke('machine:copyDiagnostics'),
   setSize: (widthMm: number, heightMm: number) =>
     ipcRenderer.invoke('machine:setSize', widthMm, heightMm),
   home: () => ipcRenderer.invoke('machine:home'),
@@ -45,7 +47,9 @@ contextBridge.exposeInMainWorld('machine', {
   resume: () => ipcRenderer.invoke('machine:resume'),
   stop: () => ipcRenderer.invoke('machine:stop'),
   reset: () => ipcRenderer.invoke('machine:reset'),
+  unlock: () => ipcRenderer.invoke('machine:unlock'),
   testMove: () => ipcRenderer.invoke('machine:testMove'),
+  setLaser: (on: boolean, confirmed?: boolean) => ipcRenderer.invoke('machine:setLaser', on, confirmed),
 })
 
 contextBridge.exposeInMainWorld('file', {

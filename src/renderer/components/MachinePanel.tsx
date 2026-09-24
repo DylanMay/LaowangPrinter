@@ -2,8 +2,9 @@ import { COPY } from '@shared/copy'
 import type { JogFeed } from '@shared/types/machine'
 import { JOG_FEEDS, JOG_STEPS } from '@shared/types/machine'
 import { formatSizeMm } from '@shared/types/workspace'
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { jobGcode } from '../gcode/jobGcode'
+import { DebugPanel } from './DebugPanel'
 import { useAppStore } from '../store/appStore'
 
 const SPEED_LABELS: Record<JogFeed, string> = {
@@ -13,8 +14,6 @@ const SPEED_LABELS: Record<JogFeed, string> = {
   3000: COPY.speedFaster,
 }
 
-type PanelView = 'settings' | 'machine' | 'commands' | 'log'
-
 export function MachinePanel() {
   const connected = useAppStore((state) => state.deviceState === 'connected')
   const jogStep = useAppStore((state) => state.jogStep)
@@ -22,6 +21,8 @@ export function MachinePanel() {
   const setJogStep = useAppStore((state) => state.setJogStep)
   const setJogFeed = useAppStore((state) => state.setJogFeed)
   const closePanel = useAppStore((state) => state.closePanel)
+  const view = useAppStore((state) => state.panelView)
+  const setView = useAppStore((state) => state.setPanelView)
   const jog = useAppStore((state) => state.jog)
   const home = useAppStore((state) => state.home)
   const activity = useAppStore((state) => state.activity)
@@ -29,6 +30,9 @@ export function MachinePanel() {
   const jobProgress = useAppStore((state) => state.jobProgress)
   const askReset = useAppStore((state) => state.askReset)
   const askStop = useAppStore((state) => state.askStop)
+  const askLaserOn = useAppStore((state) => state.askLaserOn)
+  const setLaser = useAppStore((state) => state.setLaser)
+  const laserOn = useAppStore((state) => state.laserOn)
   const imported = useAppStore((state) => state.imported)
   const placement = useAppStore((state) => state.placement)
   const workArea = useAppStore((state) => state.workArea)
@@ -39,7 +43,6 @@ export function MachinePanel() {
   const workMode = useAppStore((state) => state.workMode)
   const advanced = useAppStore((state) => state.advanced)
   const loadAdvanced = useAppStore((state) => state.loadAdvanced)
-  const [view, setView] = useState<PanelView>('settings')
   const jobBusy = jobState === 'running' || jobState === 'paused'
   const motionBusy = Boolean(activity) || jobBusy
   const gcode = jobGcode({
@@ -64,8 +67,10 @@ export function MachinePanel() {
 
   return (
     <div className="absolute inset-0 z-10 flex items-center justify-center bg-[rgba(28,24,20,0.35)] px-6">
-      <div className="max-h-[680px] w-[520px] max-w-full overflow-auto rounded-3xl border border-line bg-surface p-6 shadow-[0_12px_40px_rgba(28,24,20,0.08)]">
-        {view === 'commands' ? (
+      <div className="max-h-[720px] w-[560px] max-w-full overflow-auto rounded-3xl border border-line bg-surface p-6 shadow-[0_12px_40px_rgba(28,24,20,0.08)]">
+        {view === 'debug' ? (
+          <DebugPanel onBack={() => setView('settings')} />
+        ) : view === 'commands' ? (
           <div className="flex flex-col gap-3">
             <h2 className="text-center text-xl font-semibold">{COPY.pathCommandsTitle}</h2>
             <p className="text-center text-[13px] text-muted">{COPY.pathCommandsHint}</p>
@@ -140,6 +145,37 @@ export function MachinePanel() {
                 </button>
               ))}
             </div>
+            <section className="mt-6">
+              <h3 className="text-center text-[15px] font-semibold">{COPY.laserSwitch}</h3>
+              <p className="mt-1 text-center text-[12px] leading-relaxed text-muted">{COPY.laserSwitchHint}</p>
+              <div className="mx-auto mt-3 grid w-[210px] grid-cols-2 overflow-hidden rounded-xl border border-line">
+                <button
+                  type="button"
+                  disabled={!connected || jobBusy}
+                  onClick={() => void setLaser(false)}
+                  className={[
+                    'h-10 text-[13px] font-semibold disabled:opacity-40',
+                    !laserOn ? 'bg-ink text-white' : 'bg-paper',
+                  ].join(' ')}
+                >
+                  {COPY.laserSwitchOff}
+                </button>
+                <button
+                  type="button"
+                  disabled={!connected || jobBusy}
+                  onClick={() => askLaserOn()}
+                  className={[
+                    'h-10 text-[13px] font-semibold disabled:opacity-40',
+                    laserOn ? 'bg-[#c4473a] text-white' : 'bg-paper',
+                  ].join(' ')}
+                >
+                  {COPY.laserSwitchOn}
+                </button>
+              </div>
+              <p className="mt-2 text-center text-[12px] text-muted">
+                {laserOn ? COPY.laserArmed : COPY.laserClosed}
+              </p>
+            </section>
             <div className="mt-6 flex flex-wrap justify-center gap-2.5">
               <button
                 type="button"
@@ -177,6 +213,7 @@ export function MachinePanel() {
             currentLine={jobProgress.currentLine}
             onCommands={() => setView('commands')}
             onLog={() => setView('log')}
+            onDebug={() => setView('debug')}
             onMachine={() => setView('machine')}
             onDone={closePanel}
           />
@@ -196,6 +233,7 @@ function SettingsView({
   currentLine,
   onCommands,
   onLog,
+  onDebug,
   onMachine,
   onDone,
 }: {
@@ -208,6 +246,7 @@ function SettingsView({
   currentLine: string
   onCommands: () => void
   onLog: () => void
+  onDebug: () => void
   onMachine: () => void
   onDone: () => void
 }) {
@@ -264,7 +303,14 @@ function SettingsView({
           onClick={onLog}
           className="h-10 rounded-xl border border-line px-4 text-sm font-semibold"
         >
-          {COPY.serialLogTitle}
+            {COPY.serialLogTitle}
+          </button>
+        <button
+          type="button"
+          onClick={onDebug}
+          className="h-10 rounded-xl border border-line px-4 text-sm font-semibold"
+        >
+          {COPY.debugTitle}
         </button>
         <button
           type="button"

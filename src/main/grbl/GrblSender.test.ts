@@ -43,14 +43,19 @@ describe('GrblSender', () => {
     expect(source).not.toMatch(/from ['"]react['"]/)
   })
 
-  it('空载把 M3 转成 M5，XY 仍移动且无开光', async () => {
+  it('空载把 M3 转成 M5，切削行功率清零，XY 仍移动且无开光', async () => {
     const ctx = await setup()
     const completed = once(ctx.sender, 'completed')
-    await ctx.sender.start({ lines: SAMPLE, estimatedTime: 12, dryRun: true })
+    await ctx.sender.start({
+      lines: ['G21', 'G90', 'G0 X10 Y10', 'M3 S200', 'G1 X20 Y10 F1000 S200', 'M5'],
+      estimatedTime: 12,
+      dryRun: true,
+    })
     await completed
     const blob = ctx.port.written.map(asText).join('')
-    expect(blob).toMatch(/G1 X20 Y10 F1000/)
+    expect(blob).toMatch(/G1 X20 Y10 F1000 S0/)
     expect(blob).not.toMatch(/\bM3\b/)
+    expect(blob).not.toMatch(/\bS200\b/)
     expect(blob).toMatch(/\bM5\b/)
     expect(ctx.backend.firmware.spindleOn).toBe(false)
   })

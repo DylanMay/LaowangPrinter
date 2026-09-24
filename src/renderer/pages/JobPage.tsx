@@ -24,8 +24,10 @@ export function JobPage() {
   const pauseJob = useAppStore((state) => state.pauseJob)
   const resumeJob = useAppStore((state) => state.resumeJob)
   const resetJob = useAppStore((state) => state.resetJob)
+  const setWorkMode = useAppStore((state) => state.setWorkMode)
   const askStop = useAppStore((state) => state.askStop)
   const requestConnect = useAppStore((state) => state.requestConnect)
+  const openPanel = useAppStore((state) => state.openPanel)
   const job = useAppStore((state) => state.jobProgress)
   const inBounds = Boolean(placement && workArea && canStart(placement, workArea))
   const gcode = jobGcode({
@@ -73,11 +75,19 @@ export function JobPage() {
           />
         ) : state === 'completed' ? (
           <ResultBar
-            title={COPY.jobCompleted}
-            detail={`${COPY.elapsedLabel} ${formatDuration(job.elapsedSeconds)}`}
-            primary={COPY.engraveAgain}
+            title={dry ? COPY.dryRunDone : COPY.jobCompleted}
+            detail={dry ? COPY.dryRunDoneHint : `${COPY.elapsedLabel} ${formatDuration(job.elapsedSeconds)}`}
+            primary={dry ? COPY.switchToEngrave : COPY.engraveAgain}
             secondary={COPY.backHome}
-            onPrimary={resetJob}
+            onPrimary={
+              dry
+                ? () => {
+                    setWorkMode('engrave')
+                    resetJob()
+                    goWorkspace()
+                  }
+                : resetJob
+            }
             onSecondary={goHome}
           />
         ) : state === 'error' ? (
@@ -85,9 +95,11 @@ export function JobPage() {
             title={job.errorMessage?.split('。')[0] || COPY.deviceUnplugged}
             detail={job.errorMessage || COPY.deviceUnplugged}
             primary={COPY.reconnect}
-            secondary={COPY.backToWorkspace}
+            secondary={COPY.debugTitle}
+            extra={COPY.backToWorkspace}
             onPrimary={() => void requestConnect()}
-            onSecondary={goWorkspace}
+            onSecondary={() => openPanel('debug')}
+            onExtra={goWorkspace}
           />
         ) : state === 'stopped' ? (
           <ResultBar
@@ -234,21 +246,34 @@ function ResultBar({
   detail,
   primary,
   secondary,
+  extra,
   onPrimary,
   onSecondary,
+  onExtra,
 }: {
   title: string
   detail: string
   primary: string
   secondary: string
+  extra?: string
   onPrimary: () => void
   onSecondary: () => void
+  onExtra?: () => void
 }) {
   return (
     <div className="mx-auto flex w-[640px] max-w-full flex-col gap-3">
       <h2 className="text-lg font-semibold">{title}</h2>
       <p className="text-[13px] leading-relaxed text-muted">{detail}</p>
       <div className="flex justify-end gap-2">
+        {extra && onExtra ? (
+          <button
+            type="button"
+            onClick={onExtra}
+            className="h-10 rounded-xl border border-line bg-paper px-4 text-sm font-semibold"
+          >
+            {extra}
+          </button>
+        ) : null}
         <button
           type="button"
           onClick={onSecondary}
