@@ -124,6 +124,12 @@ describe('GrblController', () => {
     expect(port.written.map(asText).join('')).not.toMatch(/M3 S200/)
     await controller.sendLine('M3 S200', 1500, true)
     expect(port.written.map(asText).join('')).toMatch(/M3 S200/)
+    await controller.setLaser(true)
+    expect(controller.laserOn).toBe(true)
+    expect(port.written.map(asText).join('')).toMatch(/M3 S200/)
+    await controller.setLaser(false)
+    expect(controller.laserOn).toBe(false)
+    expect(port.written.map(asText).join('')).toMatch(/\bM5\b/)
     await serial.disconnect()
   })
 

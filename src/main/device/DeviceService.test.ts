@@ -1,3 +1,4 @@
+import { COPY } from '@shared/copy'
 import { formatUserError, toAppError } from '@shared/errors/appError'
 import { DeviceService } from './DeviceService'
 import { GrblCommandError } from '../grbl/errors'
@@ -209,6 +210,24 @@ describe('DeviceService', () => {
     expect(blob).toContain('$J=G91 G21 Y-10 F500')
     expect(blob).toContain('$J=G91 G21 X1 F100')
     expect(blob).not.toMatch(/\bM3\b/)
+  })
+
+  it('打开激光需要确认，确认后才发送开光指令', async () => {
+    const backend = createMockEngraverBackend()
+    const service = track(new DeviceService(new SerialManager(backend)))
+    await service.connect()
+    const port = backend.backend.opened.get('mock://engraver')
+    if (!port) throw new Error('missing port')
+    const before = port.written.length
+    await expect(service.setLaser(true)).rejects.toThrow(COPY.laserOnNeedsConfirm)
+    expect(port.written.length).toBe(before)
+    const status = await service.setLaser(true, true)
+    expect(status.laserOn).toBe(true)
+    const blob = port.written.map((chunk) => (typeof chunk === 'string' ? chunk : chunk.toString('utf8'))).join('')
+    expect(blob).toMatch(/\bM3 S200\b/)
+    const off = await service.setLaser(false)
+    expect(off.laserOn).toBe(false)
+    expect(port.written.map((chunk) => (typeof chunk === 'string' ? chunk : chunk.toString('utf8'))).join('')).toMatch(/\bM5\b/)
   })
 })
 

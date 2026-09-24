@@ -31,6 +31,7 @@ export type DeviceStatus = {
   machineState?: MachineState
   needsSizeSetup?: boolean
   activity?: 'homing' | 'jogging' | 'resetting' | 'testing'
+  laserOn?: boolean
   workArea?: {
     widthMm: number
     heightMm: number

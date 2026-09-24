@@ -32,6 +32,7 @@ export type MachineApi = {
   reset: () => Promise<DeviceStatus>
   unlock: () => Promise<DeviceStatus>
   testMove: () => Promise<DeviceStatus>
+  setLaser: (on: boolean, confirmed?: boolean) => Promise<DeviceStatus>
 }
 
 export type FileApi = {

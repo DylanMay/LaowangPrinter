@@ -49,6 +49,7 @@ contextBridge.exposeInMainWorld('machine', {
   reset: () => ipcRenderer.invoke('machine:reset'),
   unlock: () => ipcRenderer.invoke('machine:unlock'),
   testMove: () => ipcRenderer.invoke('machine:testMove'),
+  setLaser: (on: boolean, confirmed?: boolean) => ipcRenderer.invoke('machine:setLaser', on, confirmed),
 })
 
 contextBridge.exposeInMainWorld('file', {

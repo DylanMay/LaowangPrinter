@@ -33,6 +33,8 @@ export class GrblController {
   private lastReport: GrblStatusReport | null = null
   private lastAlarm: string | null = null
   private lastError: string | null = null
+  private laserHeld = false
+  private restoreLaserMode: number | null = null
   config: MachineConfig | null = null
 
   constructor(private readonly serial: SerialManager) {
@@ -59,6 +61,10 @@ export class GrblController {
 
   get lastErrorCode(): string | null {
     return this.lastError
+  }
+
+  get laserOn(): boolean {
+    return this.laserHeld
   }
 
   async identify(): Promise<MachineConfig> {
@@ -141,6 +147,32 @@ export class GrblController {
 
   async unlock(): Promise<void> {
     await this.sendLine('$X')
+  }
+
+  async setLaser(on: boolean): Promise<void> {
+    if (on) {
+      const mode = this.settings.get(32)
+      if (mode === 1) {
+        await this.trySetSetting(32, 0)
+        this.restoreLaserMode = 1
+      }
+      const speed = Math.max(1, Math.round(resolveMaxPower(this.settings.get(30)) * 0.2))
+      await this.sendLine(`M3 S${speed}`, LINE_TIMEOUT_MS, true)
+      await this.sendLine(`S${speed}`, LINE_TIMEOUT_MS, true)
+      this.laserHeld = true
+      return
+    }
+    await this.sendLine('M5', LINE_TIMEOUT_MS, true)
+    if (this.restoreLaserMode === 1) {
+      await this.trySetSetting(32, 1)
+    }
+    this.restoreLaserMode = null
+    this.laserHeld = false
+  }
+
+  clearLaserHeld(): void {
+    this.laserHeld = false
+    this.restoreLaserMode = null
   }
 
   async syncTravel(widthMm: number, heightMm: number): Promise<void> {
@@ -317,6 +349,8 @@ export class GrblController {
     this.settings = new Map()
     this.lastReport = null
     this.config = null
+    this.laserHeld = false
+    this.restoreLaserMode = null
   }
 
   private handleDisconnect(): void {

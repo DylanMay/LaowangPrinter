@@ -31,6 +31,7 @@ describe('Electron 安全配置', () => {
     expect(source).toContain('machine:getAdvanced')
     expect(source).toContain('machine:getDiagnostics')
     expect(source).toContain('machine:copyDiagnostics')
+    expect(source).toContain('machine:setLaser')
     expect(source).not.toMatch(/exposeInMainWorld\(\s*['"]ipcRenderer['"]/)
     expect(source).not.toMatch(/exposeInMainWorld\([^)]*ipcRenderer/)
   })

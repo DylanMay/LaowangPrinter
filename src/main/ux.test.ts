@@ -34,6 +34,8 @@ describe('傻瓜化主流程', () => {
     const panel = readFileSync(resolve(renderer, 'components/MachinePanel.tsx'), 'utf8')
     expect(panel).toContain('DebugPanel')
     expect(panel).toContain('COPY.debugTitle')
+    expect(panel).toContain('COPY.laserSwitch')
+    expect(panel).toContain('askLaserOn()')
     const debug = readFileSync(resolve(renderer, 'components/DebugPanel.tsx'), 'utf8')
     expect(debug).toContain('getDiagnostics')
     expect(debug).toContain('copyDiagnostics')

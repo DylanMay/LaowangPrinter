@@ -1,4 +1,5 @@
 import { XINGGUANG_4N_BAUD_RATES } from '@shared/machine/Xingguang4N'
+import { COPY } from '@shared/copy'
 import { formatUserError, toAppError, USER_ERRORS } from '@shared/errors/appError'
 import { formatDiagnostics } from '@shared/debug/formatDiagnostics'
 import type { AdvancedSnapshot, DiagnosticsSnapshot, MachineConfig } from '@shared/types/machine'
@@ -74,6 +75,7 @@ export class DeviceService {
       machineState: this.activity === 'homing' ? 'homing' : this.grbl.machineState,
       needsSizeSetup: this.state === 'connected' && Boolean(config?.needsSizeSetup),
       activity: this.activity,
+      laserOn: this.grbl.laserOn,
       workArea:
         widthMm && heightMm
           ? { widthMm, heightMm }
@@ -208,6 +210,21 @@ export class DeviceService {
     return this.getStatus()
   }
 
+  async setLaser(on: boolean, confirmed = false): Promise<DeviceStatus> {
+    if (on && !confirmed) {
+      throw new Error(COPY.laserOnNeedsConfirm)
+    }
+    if (this.state !== 'connected') return this.getStatus()
+    try {
+      await this.grbl.setLaser(on)
+      this.errorMessage = null
+    } catch (error) {
+      this.errorMessage = formatUserError(toAppError(error))
+    }
+    this.emit()
+    return this.getStatus()
+  }
+
   async home(): Promise<DeviceStatus> {
     return this.runActivity('homing', () => this.grbl.home())
   }
@@ -229,13 +246,19 @@ export class DeviceService {
   }
 
   async halt(): Promise<DeviceStatus> {
+    if (this.grbl.laserOn) {
+      await this.grbl.setLaser(false).catch(() => undefined)
+    }
     await this.grbl.halt()
     this.emit()
     return this.getStatus()
   }
 
   async reset(): Promise<DeviceStatus> {
-    return this.runActivity('resetting', () => this.grbl.reset())
+    return this.runActivity('resetting', async () => {
+      this.grbl.clearLaserHeld()
+      await this.grbl.reset()
+    })
   }
 
   async testMove(): Promise<DeviceStatus> {
