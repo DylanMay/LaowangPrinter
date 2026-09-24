@@ -23,6 +23,9 @@ describe('普通用户文案', () => {
   it('机器控制使用回到原点，不出现 Homing', () => {
     expect(COPY.findingOrigin).toBe('正在寻找机器原点…')
     expect(COPY.machineLead).toContain('不会开激光')
+    expect(COPY.laserSwitch).toBe('激光头')
+    expect(COPY.laserOnNeedsConfirm).toContain('需要确认')
+    expect(COPY.confirmLaserOn).toBe('打开激光')
   })
 
   it('导入图案使用选择文件，不出现解析术语', () => {

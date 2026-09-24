@@ -30,6 +30,9 @@ export function MachinePanel() {
   const jobProgress = useAppStore((state) => state.jobProgress)
   const askReset = useAppStore((state) => state.askReset)
   const askStop = useAppStore((state) => state.askStop)
+  const askLaserOn = useAppStore((state) => state.askLaserOn)
+  const setLaser = useAppStore((state) => state.setLaser)
+  const laserOn = useAppStore((state) => state.laserOn)
   const imported = useAppStore((state) => state.imported)
   const placement = useAppStore((state) => state.placement)
   const workArea = useAppStore((state) => state.workArea)
@@ -142,6 +145,37 @@ export function MachinePanel() {
                 </button>
               ))}
             </div>
+            <section className="mt-6">
+              <h3 className="text-center text-[15px] font-semibold">{COPY.laserSwitch}</h3>
+              <p className="mt-1 text-center text-[12px] leading-relaxed text-muted">{COPY.laserSwitchHint}</p>
+              <div className="mx-auto mt-3 grid w-[210px] grid-cols-2 overflow-hidden rounded-xl border border-line">
+                <button
+                  type="button"
+                  disabled={!connected || jobBusy}
+                  onClick={() => void setLaser(false)}
+                  className={[
+                    'h-10 text-[13px] font-semibold disabled:opacity-40',
+                    !laserOn ? 'bg-ink text-white' : 'bg-paper',
+                  ].join(' ')}
+                >
+                  {COPY.laserSwitchOff}
+                </button>
+                <button
+                  type="button"
+                  disabled={!connected || jobBusy}
+                  onClick={() => askLaserOn()}
+                  className={[
+                    'h-10 text-[13px] font-semibold disabled:opacity-40',
+                    laserOn ? 'bg-[#c4473a] text-white' : 'bg-paper',
+                  ].join(' ')}
+                >
+                  {COPY.laserSwitchOn}
+                </button>
+              </div>
+              <p className="mt-2 text-center text-[12px] text-muted">
+                {laserOn ? COPY.laserArmed : COPY.laserClosed}
+              </p>
+            </section>
             <div className="mt-6 flex flex-wrap justify-center gap-2.5">
               <button
                 type="button"

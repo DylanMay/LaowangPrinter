@@ -22,6 +22,7 @@ describe('产品第 14 节 MVP 验收清单', () => {
     expect(COPY.engraving).toBe('正在雕刻…')
     expect(COPY.jobCompleted).toBe('雕刻完成')
     expect(COPY.debugTitle).toBe('调试信息')
+    expect(COPY.laserSwitch).toBe('激光头')
     expect(COPY.dryRunDone).toBe('空载完成')
     expect(JSON.stringify(COPY)).not.toMatch(/GRBL|G-code|COM3|115200|M3|Feed Rate/i)
   })

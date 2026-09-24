@@ -43,6 +43,9 @@ export class JobService {
     if (!safety.ok) {
       throw new Error(safety.message)
     }
+    if (status.laserOn) {
+      await this.device.setLaser(false)
+    }
     await this.sender.start({
       ...options,
       lines,

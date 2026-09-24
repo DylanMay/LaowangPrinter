@@ -46,6 +46,9 @@ export function registerIpcHandlers(
   ipcMain.handle('machine:stop', () => device.halt())
   ipcMain.handle('machine:reset', () => device.reset())
   ipcMain.handle('machine:testMove', () => device.testMove())
+  ipcMain.handle('machine:setLaser', (_event, on: boolean, confirmed?: boolean) =>
+    device.setLaser(Boolean(on), Boolean(confirmed)),
+  )
   ipcMain.handle('file:openSvg', () => files.openSvg())
   ipcMain.handle('file:importSvg', (_event, filePath: string) => files.importSvg(filePath))
   ipcMain.handle('job:start', (_event, options) => job.start(options))
