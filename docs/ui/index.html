@@ -351,10 +351,30 @@ M5</pre>
         </div>
       </div>
 
+      <div class="overlay" data-overlay="laser-confirm">
+        <div class="modal">
+          <h2>确定打开激光吗？</h2>
+          <p class="desc">打开后会产生激光。请确认人员离开光路。</p>
+          <div class="modal-actions">
+            <button class="btn" type="button" id="cancelLaserOn">取消</button>
+            <button class="btn btn-danger-solid" type="button" id="confirmLaserOn">打开激光</button>
+          </div>
+        </div>
+      </div>
+
       <div class="overlay" data-overlay="machine">
         <div class="modal">
           <h2>机器控制</h2>
-          <p class="desc">点动只会移动，不会开激光。</p>
+          <section class="laser-switch" aria-label="激光头">
+            <h3>激光头</h3>
+            <p class="note">打开后会持续出光，用来确认激光头是否工作。请离开光路。</p>
+            <div class="segmented laser-toggle" id="laserToggle">
+              <button class="on" type="button" data-laser="off">关闭</button>
+              <button type="button" data-laser="on">打开</button>
+            </div>
+            <p class="laser-state" id="laserState">激光已关闭</p>
+          </section>
+          <p class="desc">点动只会移动，不会开激光。打开激光请用上面的开关。</p>
           <div class="segmented" data-segment="jog-step">
             <button class="on" type="button">1 mm</button>
             <button type="button">10 mm</button>

@@ -554,6 +554,8 @@ button:disabled { cursor: not-allowed; }
 .overlay.show { display: grid; }
 .modal {
   width: 440px;
+  max-height: calc(100vh - 80px);
+  overflow: auto;
   background: var(--surface);
   border-radius: 20px;
   padding: 28px;
@@ -570,6 +572,53 @@ button:disabled { cursor: not-allowed; }
   text-align: center;
   color: var(--muted);
   font-size: 14px;
+}
+.laser-switch {
+  margin: 16px 0 18px;
+  padding: 16px 14px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--paper);
+  text-align: center;
+}
+.laser-switch h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+.laser-switch .note {
+  margin: 6px 0 10px;
+}
+.laser-toggle {
+  max-width: 260px;
+  margin: 0 auto;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  padding: 0;
+}
+.laser-toggle button {
+  height: 44px;
+  font-size: 15px;
+  border-radius: 0;
+}
+.laser-toggle button.on[data-laser="off"] {
+  background: var(--ink);
+  color: #fff;
+  box-shadow: none;
+}
+.laser-toggle button.on[data-laser="on"] {
+  background: var(--danger);
+  color: #fff;
+  box-shadow: none;
+}
+.laser-state {
+  margin: 10px 0 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.laser-state.on {
+  color: var(--danger);
 }
 .check { display: flex; flex-direction: column; gap: 8px; margin: 0 0 18px; }
 .check li {
