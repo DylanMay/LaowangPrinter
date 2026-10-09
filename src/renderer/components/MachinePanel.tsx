@@ -103,8 +103,15 @@ export function MachinePanel() {
         ) : view === 'machine' ? (
           <>
             <h2 className="text-center text-xl font-semibold">{COPY.machineControl}</h2>
-            <p className="mt-2 text-center text-[13px] text-muted">{COPY.machineLead}</p>
-            <div className="mt-5 flex justify-center gap-2">
+            <LaserSwitch
+              connected={connected}
+              jobBusy={jobBusy}
+              laserOn={laserOn}
+              onOff={() => void setLaser(false)}
+              onAskOn={askLaserOn}
+            />
+            <p className="mt-5 text-center text-[13px] text-muted">{COPY.machineLead}</p>
+            <div className="mt-4 flex justify-center gap-2">
               {JOG_STEPS.map((step) => (
                 <button
                   key={step}
@@ -145,37 +152,6 @@ export function MachinePanel() {
                 </button>
               ))}
             </div>
-            <section className="mt-6">
-              <h3 className="text-center text-[15px] font-semibold">{COPY.laserSwitch}</h3>
-              <p className="mt-1 text-center text-[12px] leading-relaxed text-muted">{COPY.laserSwitchHint}</p>
-              <div className="mx-auto mt-3 grid w-[210px] grid-cols-2 overflow-hidden rounded-xl border border-line">
-                <button
-                  type="button"
-                  disabled={!connected || jobBusy}
-                  onClick={() => void setLaser(false)}
-                  className={[
-                    'h-10 text-[13px] font-semibold disabled:opacity-40',
-                    !laserOn ? 'bg-ink text-white' : 'bg-paper',
-                  ].join(' ')}
-                >
-                  {COPY.laserSwitchOff}
-                </button>
-                <button
-                  type="button"
-                  disabled={!connected || jobBusy}
-                  onClick={() => askLaserOn()}
-                  className={[
-                    'h-10 text-[13px] font-semibold disabled:opacity-40',
-                    laserOn ? 'bg-[#c4473a] text-white' : 'bg-paper',
-                  ].join(' ')}
-                >
-                  {COPY.laserSwitchOn}
-                </button>
-              </div>
-              <p className="mt-2 text-center text-[12px] text-muted">
-                {laserOn ? COPY.laserArmed : COPY.laserClosed}
-              </p>
-            </section>
             <div className="mt-6 flex flex-wrap justify-center gap-2.5">
               <button
                 type="button"
@@ -328,6 +304,62 @@ function SettingsView({
         </button>
       </div>
     </>
+  )
+}
+
+function LaserSwitch({
+  connected,
+  jobBusy,
+  laserOn,
+  onOff,
+  onAskOn,
+}: {
+  connected: boolean
+  jobBusy: boolean
+  laserOn: boolean
+  onOff: () => void
+  onAskOn: () => void
+}) {
+  return (
+    <section
+      aria-label={COPY.laserSwitch}
+      className="mt-4 rounded-2xl border border-line bg-paper px-4 py-4"
+    >
+      <h3 className="text-center text-[16px] font-semibold">{COPY.laserSwitch}</h3>
+      <p className="mt-1 text-center text-[12px] leading-relaxed text-muted">{COPY.laserSwitchHint}</p>
+      <div className="mx-auto mt-3 grid w-full max-w-[260px] grid-cols-2 overflow-hidden rounded-xl border border-line">
+        <button
+          type="button"
+          disabled={!connected || jobBusy}
+          onClick={onOff}
+          className={[
+            'h-12 text-[15px] font-semibold disabled:opacity-40',
+            !laserOn ? 'bg-ink text-white' : 'bg-surface',
+          ].join(' ')}
+        >
+          {COPY.laserSwitchOff}
+        </button>
+        <button
+          type="button"
+          disabled={!connected || jobBusy}
+          onClick={onAskOn}
+          className={[
+            'h-12 text-[15px] font-semibold disabled:opacity-40',
+            laserOn ? 'bg-[#c4473a] text-white' : 'bg-surface',
+          ].join(' ')}
+        >
+          {COPY.laserSwitchOn}
+        </button>
+      </div>
+      <p
+        className={[
+          'mt-2 text-center text-[13px] font-semibold',
+          laserOn ? 'text-[#c4473a]' : 'text-muted',
+        ].join(' ')}
+      >
+        {laserOn ? COPY.laserArmed : COPY.laserClosed}
+      </p>
+    </section>
   )
 }
 

@@ -71,7 +71,7 @@ export const COPY = {
   sizeDone: '完成',
   sizeInvalid: '请填写有效的宽和高。',
   machineControl: '机器控制',
-  machineLead: '点动只会移动，不会开激光。',
+  machineLead: '点动只会移动，不会开激光。打开激光请用上面的开关。',
   laserSwitch: '激光头',
   laserSwitchOn: '打开',
   laserSwitchOff: '关闭',

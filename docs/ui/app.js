@@ -260,6 +260,34 @@ $all("[data-segment]").forEach((group) => {
     e.target.classList.add("on");
   });
 });
+const laserToggle = $("#laserToggle");
+const laserState = $("#laserState");
+
+function setLaserUi(on) {
+  $all("button", laserToggle).forEach((btn) => {
+    btn.classList.toggle("on", (btn.dataset.laser === "on") === on);
+  });
+  laserState.textContent = on ? "激光已打开" : "激光已关闭";
+  laserState.classList.toggle("on", on);
+}
+
+laserToggle.addEventListener("click", (e) => {
+  if (e.target.tagName !== "BUTTON") return;
+  if (e.target.dataset.laser === "on") {
+    showOverlay("laser-confirm");
+    return;
+  }
+  setLaserUi(false);
+  toast("激光已关闭");
+});
+
+$("#cancelLaserOn").addEventListener("click", () => showOverlay("machine"));
+$("#confirmLaserOn").addEventListener("click", () => {
+  setLaserUi(true);
+  toast("激光已打开");
+  showOverlay("machine");
+});
+
 $("[data-play]").addEventListener("click", playMainFlow);
 
 $("#dropzone").addEventListener("click", () => {
