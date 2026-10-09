@@ -76,6 +76,34 @@ describe('MockGRBL', () => {
     expect(fw.spindleOn).toBe(false)
   })
 
+  it('减速中复位会报警，停稳后复位不会', async () => {
+    const backend = new MockSerialBackend()
+    backend.ports = [{ path: 'mock://engraver' }]
+    const opened = await backend.open('mock://engraver', 115200)
+    const port = backend.opened.get('mock://engraver')
+    if (!port) throw new Error('missing port')
+    const lines: string[] = []
+    opened.onData((chunk) => lines.push(chunk.toString('utf8')))
+    const fw = new MockGRBL({ holdSettleMs: 200 }).attach(port)
+
+    fw.state = 'Run'
+    await port.write('!')
+    expect(fw.state).toBe('Hold')
+    expect(fw.holdPending).toBe(true)
+    await port.write('?')
+    expect(lines.join('')).toContain('<Hold:1|')
+    expect(lines.join('')).toContain('FS:500,0')
+    await port.write(Buffer.from([0x18]))
+    expect(lines.join('')).toContain('ALARM:3')
+
+    fw.state = 'Hold'
+    fw.holdPending = false
+    fw.feedRate = 0
+    const settled = lines.join('')
+    await port.write(Buffer.from([0x18]))
+    expect(lines.join().slice(settled.length)).not.toContain('ALARM:3')
+  })
+
   it('createMockEngraverBackend 打开即挂上固件', async () => {
     const backend = createMockEngraverBackend()
     const ports = await backend.list()

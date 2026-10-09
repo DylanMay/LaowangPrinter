@@ -191,6 +191,20 @@ export class GrblController {
     this.laserHeld = false
   }
 
+  /**
+   * 正式雕刻前恢复激光模式（$32=1），但不要发 M5。
+   * 机器控制里试过光之后，G1 应能马上出光；空载才会关激光。
+   * 激光模式下列车 G0 仍不出光，避免空移烧料。
+   */
+  async prepareEngrave(): Promise<void> {
+    await this.ensureReady()
+    if (this.restoreLaserMode === 1 || this.settings.get(32) === 0) {
+      await this.trySetSetting(32, 1)
+    }
+    this.restoreLaserMode = null
+    this.laserHeld = false
+  }
+
   clearLaserHeld(): void {
     this.laserHeld = false
     this.restoreLaserMode = null
@@ -283,6 +297,7 @@ export class GrblController {
         position: this.lastReport?.position ?? { x: 0, y: 0, z: 0 },
         feed: 0,
         spindle: 0,
+        holdPending: false,
       }
       this.emitter.emit('alarm', error)
       return
@@ -308,6 +323,7 @@ export class GrblController {
           position: this.lastReport?.position ?? { x: 0, y: 0, z: 0 },
           feed: 0,
           spindle: 0,
+          holdPending: false,
         }
       }
       if (/unlocked/i.test(message.raw)) {
@@ -398,17 +414,21 @@ export class GrblController {
     await this.ensureUnlocked()
   }
 
-  private async waitUntilStopped(ms = 2000): Promise<void> {
-    const stopped = () => {
-      const state = this.lastReport?.state
-      return state === 'Hold' || state === 'Idle' || state === 'Alarm' || state === 'Sleep'
-    }
+  private isFullyStopped(): boolean {
+    const report = this.lastReport
+    if (!report) return false
+    if (report.state === 'Idle' || report.state === 'Alarm' || report.state === 'Sleep') return true
+    return report.state === 'Hold' && !report.holdPending && report.feed === 0
+  }
+
+  /** Hold:1 / 进给不为 0 时还在减速，这时复位会 ALARM:3。 */
+  private async waitUntilStopped(ms = 5000): Promise<void> {
     const deadline = Date.now() + ms
     await this.writeRealtime(REALTIME_STATUS)
-    if (stopped()) return
+    if (this.isFullyStopped()) return
     while (Date.now() < deadline) {
       await this.writeRealtime(REALTIME_STATUS)
-      if (await this.waitFor(stopped, 120)) return
+      if (await this.waitFor(() => this.isFullyStopped(), 120)) return
     }
   }
 
@@ -420,6 +440,7 @@ export class GrblController {
         position: this.lastReport?.position ?? { x: 0, y: 0, z: 0 },
         feed: 0,
         spindle: 0,
+        holdPending: false,
       }
       this.emitter.emit('status', this.lastReport)
     }

@@ -225,6 +225,18 @@ export class DeviceService {
     return this.getStatus()
   }
 
+  async prepareEngrave(): Promise<DeviceStatus> {
+    if (this.state !== 'connected') return this.getStatus()
+    try {
+      await this.grbl.prepareEngrave()
+      this.errorMessage = null
+    } catch (error) {
+      this.errorMessage = formatUserError(toAppError(error))
+    }
+    this.emit()
+    return this.getStatus()
+  }
+
   async home(): Promise<DeviceStatus> {
     return this.runActivity('homing', () => this.grbl.home())
   }

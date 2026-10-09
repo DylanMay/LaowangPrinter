@@ -23,6 +23,8 @@ export type GrblStatusReport = {
   position: GrblPosition
   feed: number
   spindle: number
+  /** Hold:1 表示还在减速；Hold:0 才算停住。 */
+  holdPending: boolean
 }
 
 export type GrblMessage =
