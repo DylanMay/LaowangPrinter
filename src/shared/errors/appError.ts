@@ -1,3 +1,5 @@
+import { COPY } from '@shared/copy'
+
 export type AppErrorCode =
   | 'DEVICE_DISCONNECTED'
   | 'PORT_BUSY'
@@ -32,8 +34,8 @@ export const USER_ERRORS: Record<AppErrorCode, { userMessage: string; hint?: str
     hint: '可能是图案或机器设置存在问题。',
   },
   GRBL_ALARM: {
-    userMessage: '雕刻机处于异常状态。',
-    hint: '请检查机器，然后重新归零。',
+    userMessage: '雕刻机处于锁定状态。',
+    hint: '请点「解除异常」后再试。',
   },
   LASER_BLOCKED: {
     userMessage: '不会开启激光。',
@@ -48,6 +50,14 @@ export const USER_ERRORS: Record<AppErrorCode, { userMessage: string; hint?: str
 export function toAppError(error: unknown): AppError {
   const technicalDetail = detailOf(error)
   const code = readCode(error, technicalDetail)
+  if (code === 'GRBL_ALARM' && (alarmCodeOf(error) === 3 || /ALARM:3\b/i.test(technicalDetail))) {
+    return {
+      code,
+      userMessage: COPY.stopWhileMoving,
+      hint: COPY.stopWhileMovingHint,
+      technicalDetail,
+    }
+  }
   return {
     code,
     ...USER_ERRORS[code],
@@ -65,6 +75,9 @@ function detailOf(error: unknown): string {
 
 function readCode(error: unknown, technicalDetail: string): AppErrorCode {
   const code = typeof error === 'object' && error && 'code' in error ? String(error.code) : ''
+  if (code === 'GRBL_ERROR' && grblCodeOf(error) === 9) {
+    return 'GRBL_ALARM'
+  }
   if (code === 'PORT_BUSY' || code === 'DEVICE_DISCONNECTED' || code === 'GRBL_ERROR' || code === 'GRBL_ALARM' || code === 'LASER_BLOCKED') {
     return code
   }
@@ -80,6 +93,9 @@ function readCode(error: unknown, technicalDetail: string): AppErrorCode {
   if (/not found|no port|no device|not a grbl/i.test(technicalDetail)) {
     return 'NO_DEVICE'
   }
+  if (/grbl error:\s*9\b/i.test(technicalDetail) || /^error:\s*9\b/i.test(technicalDetail)) {
+    return 'GRBL_ALARM'
+  }
   if (/grbl error:\s*\d+/i.test(technicalDetail) || /^error:\s*\d+/i.test(technicalDetail)) {
     return 'GRBL_ERROR'
   }
@@ -91,4 +107,16 @@ function readCode(error: unknown, technicalDetail: string): AppErrorCode {
 
 export function formatUserError(error: AppError): string {
   return error.hint ? `${error.userMessage}${error.hint}` : error.userMessage
+}
+
+function grblCodeOf(error: unknown): number | null {
+  if (typeof error !== 'object' || !error || !('grblCode' in error)) return null
+  const value = Number((error as { grblCode: unknown }).grblCode)
+  return Number.isFinite(value) ? value : null
+}
+
+function alarmCodeOf(error: unknown): number | null {
+  if (typeof error !== 'object' || !error || !('alarmCode' in error)) return null
+  const value = Number((error as { alarmCode: unknown }).alarmCode)
+  return Number.isFinite(value) ? value : null
 }

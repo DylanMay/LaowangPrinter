@@ -15,6 +15,8 @@ describe('MockGRBL', () => {
 
     await port.write(Buffer.from([0x18]))
     expect(lines.join('')).toContain("Grbl 1.1h ['$' for help]")
+    expect(lines.join('')).toContain("$X' to unlock")
+    expect(fw.state).toBe('Alarm')
 
     await port.write('$$\n')
     expect(lines.join('')).toContain('$30=1000')
@@ -25,6 +27,12 @@ describe('MockGRBL', () => {
     await port.write('$G\n')
     expect(lines.join('')).toContain('[GC:')
 
+    await port.write('M3 S200\n')
+    expect(lines.join('')).toContain('error:9')
+    expect(fw.state).toBe('Alarm')
+
+    await port.write('$X\n')
+    expect(fw.state).toBe('Idle')
     await port.write('?')
     expect(lines.join('')).toContain('<Idle|')
     expect(fw.state).toBe('Idle')
@@ -45,6 +53,27 @@ describe('MockGRBL', () => {
 
     fw.simulateAlarm(1)
     expect(lines.join('')).toContain('ALARM:1')
+  })
+
+  it('运动中复位会 ALARM:3，暂停时不执行普通指令', async () => {
+    const backend = new MockSerialBackend()
+    backend.ports = [{ path: 'mock://engraver' }]
+    const opened = await backend.open('mock://engraver', 115200)
+    const port = backend.opened.get('mock://engraver')
+    if (!port) throw new Error('missing port')
+    const lines: string[] = []
+    opened.onData((chunk) => lines.push(chunk.toString('utf8')))
+    const fw = new MockGRBL().attach(port)
+    fw.state = 'Run'
+    await port.write(Buffer.from([0x18]))
+    expect(lines.join('')).toContain('ALARM:3')
+    expect(fw.state).toBe('Alarm')
+
+    fw.state = 'Hold'
+    const before = lines.join('')
+    await port.write('M3 S200\n')
+    expect(lines.join('')).toBe(before)
+    expect(fw.spindleOn).toBe(false)
   })
 
   it('createMockEngraverBackend 打开即挂上固件', async () => {

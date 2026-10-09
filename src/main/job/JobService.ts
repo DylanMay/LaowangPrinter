@@ -27,13 +27,17 @@ export class JobService {
   }
 
   async start(options: JobStartOptions): Promise<JobProgress> {
-    const status = this.device.getStatus()
+    let status = this.device.getStatus()
     const dryRun = Boolean(options.dryRun)
     const confirmed = Boolean(options.confirmed)
     if (!dryRun && !confirmed) {
       throw new Error(COPY.needsConfirm)
     }
     const lines = prepareLines(options.lines ?? [], dryRun)
+    if (status.machineState === 'alarm') {
+      await this.device.unlock()
+      status = this.device.getStatus()
+    }
     const safety = checkJobSafety({
       connected: status.state === 'connected',
       alarm: status.machineState === 'alarm',
