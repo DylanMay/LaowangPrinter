@@ -1,3 +1,5 @@
+import { COPY } from '@shared/copy'
+
 export type AppErrorCode =
   | 'DEVICE_DISCONNECTED'
   | 'PORT_BUSY'
@@ -48,6 +50,14 @@ export const USER_ERRORS: Record<AppErrorCode, { userMessage: string; hint?: str
 export function toAppError(error: unknown): AppError {
   const technicalDetail = detailOf(error)
   const code = readCode(error, technicalDetail)
+  if (code === 'GRBL_ALARM' && (alarmCodeOf(error) === 3 || /ALARM:3\b/i.test(technicalDetail))) {
+    return {
+      code,
+      userMessage: COPY.stopWhileMoving,
+      hint: COPY.stopWhileMovingHint,
+      technicalDetail,
+    }
+  }
   return {
     code,
     ...USER_ERRORS[code],
@@ -102,5 +112,11 @@ export function formatUserError(error: AppError): string {
 function grblCodeOf(error: unknown): number | null {
   if (typeof error !== 'object' || !error || !('grblCode' in error)) return null
   const value = Number((error as { grblCode: unknown }).grblCode)
+  return Number.isFinite(value) ? value : null
+}
+
+function alarmCodeOf(error: unknown): number | null {
+  if (typeof error !== 'object' || !error || !('alarmCode' in error)) return null
+  const value = Number((error as { alarmCode: unknown }).alarmCode)
   return Number.isFinite(value) ? value : null
 }

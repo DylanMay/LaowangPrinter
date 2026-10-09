@@ -246,19 +246,19 @@ export class DeviceService {
   }
 
   async halt(): Promise<DeviceStatus> {
-    if (this.grbl.laserOn) {
-      await this.grbl.setLaser(false).catch(() => undefined)
+    if (this.state !== 'connected') return this.getStatus()
+    try {
+      await this.grbl.abortCycle()
+      this.errorMessage = null
+    } catch (error) {
+      this.errorMessage = formatUserError(toAppError(error))
     }
-    await this.grbl.halt()
     this.emit()
     return this.getStatus()
   }
 
   async reset(): Promise<DeviceStatus> {
-    return this.runActivity('resetting', async () => {
-      this.grbl.clearLaserHeld()
-      await this.grbl.reset()
-    })
+    return this.runActivity('resetting', () => this.grbl.abortCycle())
   }
 
   async testMove(): Promise<DeviceStatus> {

@@ -100,6 +100,8 @@ export const COPY = {
   cancel: '取消',
   stopConfirm: '确定停止当前雕刻吗？',
   stopHint: '停止后需要重新开始任务。',
+  stopWhileMoving: '停止时机器还在动，位置可能不准。',
+  stopWhileMovingHint: '请点「解除异常」，再轻轻点动确认位置。',
   keepGoing: '继续雕刻',
   stopNow: '停止',
   pause: '暂停',
