@@ -81,7 +81,7 @@ export class MockGRBL {
         continue
       }
       if (char === '!') {
-        this.state = 'Hold'
+        if (this.state === 'Run' || this.state === 'Jog') this.state = 'Hold'
         continue
       }
       if (char === '~') {
@@ -112,9 +112,11 @@ export class MockGRBL {
   }
 
   private reset(): void {
+    const moving = this.state === 'Run' || this.state === 'Jog'
     this.lineBuf = ''
     this.pendingOk = null
     this.state = 'Alarm'
+    if (moving) this.emit('ALARM:3\r\n')
     this.emit(`Grbl ${this.version} ['$' for help]\r\n`)
     this.emit(`[MSG:'$H'|'$X' to unlock]\r\n`)
   }
@@ -122,6 +124,9 @@ export class MockGRBL {
   private handleLine(line: string): void {
     if (!line) {
       this.replyOk()
+      return
+    }
+    if (this.state === 'Hold') {
       return
     }
     if (line === '$$') {

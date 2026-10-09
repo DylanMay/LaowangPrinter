@@ -134,6 +134,42 @@ describe('GrblController', () => {
     await serial.disconnect()
   })
 
+  it('停止时先停住再复位解锁，结束后不停在锁定', async () => {
+    const backend = createMockEngraverBackend({ settings: { 22: 0, 130: 50, 131: 200 } })
+    const serial = new SerialManager(backend)
+    const controller = new GrblController(serial)
+    running.push(controller)
+    await serial.connect('mock://engraver')
+    await controller.identify()
+    const resetsBefore = serialWrites(backend).split('\x18').length
+    await controller.abortCycle()
+    expect(backend.firmware.state).toBe('Idle')
+    expect(controller.machineState).not.toBe('alarm')
+    const blob = serialWrites(backend)
+    expect(blob).toContain('!')
+    expect(blob.split('\x18').length).toBeGreaterThan(resetsBefore)
+    expect(blob).toMatch(/\$X/)
+    await serial.disconnect()
+  })
+
+  it('暂停中开激光会先停干净再开光', async () => {
+    const backend = createMockEngraverBackend({ settings: { 22: 0 } })
+    const serial = new SerialManager(backend)
+    const controller = new GrblController(serial)
+    running.push(controller)
+    await serial.connect('mock://engraver')
+    await controller.identify()
+    backend.firmware.state = 'Hold'
+    await controller.writeRealtime('?')
+    await new Promise((resolve) => setTimeout(resolve, 30))
+    expect(controller.machineState).toBe('paused')
+    await controller.setLaser(true)
+    expect(controller.laserOn).toBe(true)
+    expect(backend.firmware.state).toBe('Idle')
+    expect(serialWrites(backend)).toMatch(/M3 S200/)
+    await serial.disconnect()
+  })
+
   it('上电锁定时自动解除，之后才能开激光', async () => {
     const backend = createMockEngraverBackend({ settings: { 22: 0, 130: 50, 131: 200 } })
     const serial = new SerialManager(backend)

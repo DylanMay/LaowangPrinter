@@ -194,9 +194,8 @@ export class GrblSender {
 
   private async safeAbort(): Promise<void> {
     if (!this.serial.connected) return
-    await this.controller.halt()
     try {
-      await this.controller.reset()
+      await this.controller.abortCycle()
     } catch {
       /* already disconnected or not GRBL */
     }

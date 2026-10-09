@@ -86,6 +86,8 @@ describe('普通用户文案', () => {
     expect(COPY.copyDebug).toBe('复制全部')
     expect(COPY.unlockMachine).toBe('解除异常')
     expect(COPY.deviceAlarm).toContain('解除异常')
+    expect(COPY.stopWhileMoving).toContain('还在动')
+    expect(COPY.stopWhileMovingHint).toContain('解除异常')
     expect(COPY.unlockHint).toContain('锁定')
     expect(COPY.settingsBody).toContain('排查问题')
   })

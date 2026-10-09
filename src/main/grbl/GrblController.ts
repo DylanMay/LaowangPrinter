@@ -119,7 +119,7 @@ export class GrblController {
   }
 
   async home(): Promise<void> {
-    await this.ensureUnlocked()
+    await this.ensureReady()
     if (!this.homingEnabled()) {
       await this.sendLine('G90 G21')
       await this.sendLine('G0 X0 Y0', MOTION_TIMEOUT_MS)
@@ -129,7 +129,7 @@ export class GrblController {
   }
 
   async jog(params: JogParams): Promise<void> {
-    await this.ensureUnlocked()
+    await this.ensureReady()
     const command = buildJogCommand(params)
     await this.sendLine(command, MOTION_TIMEOUT_MS)
   }
@@ -144,6 +144,14 @@ export class GrblController {
 
   async halt(): Promise<void> {
     await this.writeRealtime(REALTIME_HOLD)
+  }
+
+  /** 先停住再复位。运动中直接复位会 ALARM:3，之后还要再解锁。 */
+  async abortCycle(): Promise<void> {
+    this.clearLaserHeld()
+    await this.writeRealtime(REALTIME_HOLD)
+    await this.waitUntilStopped()
+    await this.reset()
   }
 
   async reset(): Promise<void> {
@@ -162,7 +170,7 @@ export class GrblController {
   }
 
   async setLaser(on: boolean): Promise<void> {
-    await this.ensureUnlocked()
+    await this.ensureReady()
     if (on) {
       const mode = this.settings.get(32)
       if (mode === 1) {
@@ -197,7 +205,6 @@ export class GrblController {
   }
 
   async testMove(): Promise<void> {
-    await this.ensureUnlocked()
     await this.jog({ axis: 'X', distanceMm: 1, feed: 100 })
   }
 
@@ -380,6 +387,29 @@ export class GrblController {
     if (!this.isLocked()) return
     if (this.homingEnabled()) return
     await this.unlock()
+  }
+
+  private async ensureReady(): Promise<void> {
+    const state = this.lastReport?.state
+    if (state === 'Hold' || state === 'Run' || state === 'Jog') {
+      await this.abortCycle()
+      return
+    }
+    await this.ensureUnlocked()
+  }
+
+  private async waitUntilStopped(ms = 2000): Promise<void> {
+    const stopped = () => {
+      const state = this.lastReport?.state
+      return state === 'Hold' || state === 'Idle' || state === 'Alarm' || state === 'Sleep'
+    }
+    const deadline = Date.now() + ms
+    await this.writeRealtime(REALTIME_STATUS)
+    if (stopped()) return
+    while (Date.now() < deadline) {
+      await this.writeRealtime(REALTIME_STATUS)
+      if (await this.waitFor(stopped, 120)) return
+    }
   }
 
   private markUnlocked(): void {

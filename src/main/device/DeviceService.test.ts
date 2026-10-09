@@ -1,7 +1,7 @@
 import { COPY } from '@shared/copy'
 import { formatUserError, toAppError } from '@shared/errors/appError'
 import { DeviceService } from './DeviceService'
-import { GrblCommandError } from '../grbl/errors'
+import { GrblAlarmError, GrblCommandError } from '../grbl/errors'
 import { createMockEngraverBackend } from '../grbl/MockGRBL'
 import { MockSerialBackend } from '../serial/MockSerialPort'
 import { SerialManager } from '../serial/SerialManager'
@@ -183,7 +183,7 @@ describe('DeviceService', () => {
     expect(status.errorMessage).toContain('USB')
   })
 
-  it('机器控制发送回到原点 / 点动，停止不 Reset，任何路径不发送 M3', async () => {
+  it('机器控制发送回到原点 / 点动，停止后回到空闲，任何路径不发送 M3', async () => {
     const backend = createMockEngraverBackend()
     const service = track(new DeviceService(new SerialManager(backend)))
     await service.connect()
@@ -198,12 +198,14 @@ describe('DeviceService', () => {
     await service.jog('Y', -10, 500)
     await service.testMove()
     await service.halt()
+    expect(backend.firmware.state).toBe('Idle')
+    expect(service.getStatus().machineState).not.toBe('alarm')
     expect(
       port.written.filter((chunk) => {
         if (typeof chunk === 'string') return chunk.length === 1 && chunk.charCodeAt(0) === 0x18
         return chunk.length === 1 && chunk[0] === 0x18
       }).length,
-    ).toBe(resetsBefore)
+    ).toBeGreaterThan(resetsBefore)
 
     const blob = port.written.map((chunk) => (typeof chunk === 'string' ? chunk : chunk.toString('utf8'))).join('')
     expect(blob).toContain('$X')
@@ -257,6 +259,14 @@ describe('toAppError', () => {
     expect(error.code).toBe('PORT_BUSY')
     expect(text).toContain('无法连接雕刻机')
     expect(text).not.toContain('Access denied')
+  })
+
+  it('把 ALARM:3 说明成停止时还在动', () => {
+    const error = toAppError(new GrblAlarmError(3))
+    const text = formatUserError(error)
+    expect(error.code).toBe('GRBL_ALARM')
+    expect(text).toContain('还在动')
+    expect(text).not.toContain('ALARM:3')
   })
 
   it('把 error:9 当成锁定，提示解除异常', () => {
