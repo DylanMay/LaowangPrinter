@@ -35,6 +35,7 @@ export class GrblController {
   private lastError: string | null = null
   private laserHeld = false
   private restoreLaserMode: number | null = null
+  private unlockNeeded = false
   config: MachineConfig | null = null
 
   constructor(private readonly serial: SerialManager) {
@@ -81,6 +82,7 @@ export class GrblController {
     await this.sendLine('$$')
     await this.sendLine('$G')
     await this.prepareLaserSettings()
+    await this.unlockIfNoHoming()
     this.config = this.buildConfig()
     this.startPolling()
     this.emitter.emit('config', this.config)
@@ -117,10 +119,17 @@ export class GrblController {
   }
 
   async home(): Promise<void> {
+    await this.ensureReady()
+    if (!this.homingEnabled()) {
+      await this.sendLine('G90 G21')
+      await this.sendLine('G0 X0 Y0', MOTION_TIMEOUT_MS)
+      return
+    }
     await this.sendLine('$H', MOTION_TIMEOUT_MS)
   }
 
   async jog(params: JogParams): Promise<void> {
+    await this.ensureReady()
     const command = buildJogCommand(params)
     await this.sendLine(command, MOTION_TIMEOUT_MS)
   }
@@ -137,19 +146,31 @@ export class GrblController {
     await this.writeRealtime(REALTIME_HOLD)
   }
 
+  /** 先停住再复位。运动中直接复位会 ALARM:3，之后还要再解锁。 */
+  async abortCycle(): Promise<void> {
+    this.clearLaserHeld()
+    await this.writeRealtime(REALTIME_HOLD)
+    await this.waitUntilStopped()
+    await this.reset()
+  }
+
   async reset(): Promise<void> {
     this.version = null
+    this.unlockNeeded = true
     this.rejectOk(new Error('reset'))
     await this.writeRealtime(Buffer.from([REALTIME_RESET]))
     const welcomed = await this.waitFor(() => this.version !== null, VERSION_WAIT_MS)
     if (!welcomed) throw new NotGrblError()
+    await this.unlockIfNoHoming()
   }
 
   async unlock(): Promise<void> {
     await this.sendLine('$X')
+    this.markUnlocked()
   }
 
   async setLaser(on: boolean): Promise<void> {
+    await this.ensureReady()
     if (on) {
       const mode = this.settings.get(32)
       if (mode === 1) {
@@ -279,8 +300,24 @@ export class GrblController {
       this.parserState = message.raw
       return
     }
+    if (message.kind === 'feedback') {
+      if (/unlock/i.test(message.raw) && /\$X/.test(message.raw)) {
+        this.unlockNeeded = true
+        this.lastReport = {
+          state: 'Alarm',
+          position: this.lastReport?.position ?? { x: 0, y: 0, z: 0 },
+          feed: 0,
+          spindle: 0,
+        }
+      }
+      if (/unlocked/i.test(message.raw)) {
+        this.markUnlocked()
+      }
+      return
+    }
     if (message.kind === 'status') {
       this.lastReport = message.report
+      if (message.report.state !== 'Alarm') this.unlockNeeded = false
       this.emitter.emit('status', message.report)
     }
   }
@@ -333,6 +370,61 @@ export class GrblController {
     return x <= COMPACT_BED_MAX_MM || y <= COMPACT_BED_MAX_MM
   }
 
+  private homingEnabled(): boolean {
+    return (this.settings.get(22) ?? 0) !== 0
+  }
+
+  private isLocked(): boolean {
+    return this.unlockNeeded || this.lastReport?.state === 'Alarm'
+  }
+
+  private async unlockIfNoHoming(): Promise<void> {
+    if (this.homingEnabled()) return
+    await this.unlock()
+  }
+
+  private async ensureUnlocked(): Promise<void> {
+    if (!this.isLocked()) return
+    if (this.homingEnabled()) return
+    await this.unlock()
+  }
+
+  private async ensureReady(): Promise<void> {
+    const state = this.lastReport?.state
+    if (state === 'Hold' || state === 'Run' || state === 'Jog') {
+      await this.abortCycle()
+      return
+    }
+    await this.ensureUnlocked()
+  }
+
+  private async waitUntilStopped(ms = 2000): Promise<void> {
+    const stopped = () => {
+      const state = this.lastReport?.state
+      return state === 'Hold' || state === 'Idle' || state === 'Alarm' || state === 'Sleep'
+    }
+    const deadline = Date.now() + ms
+    await this.writeRealtime(REALTIME_STATUS)
+    if (stopped()) return
+    while (Date.now() < deadline) {
+      await this.writeRealtime(REALTIME_STATUS)
+      if (await this.waitFor(stopped, 120)) return
+    }
+  }
+
+  private markUnlocked(): void {
+    this.unlockNeeded = false
+    if (this.lastReport?.state === 'Alarm' || !this.lastReport) {
+      this.lastReport = {
+        state: 'Idle',
+        position: this.lastReport?.position ?? { x: 0, y: 0, z: 0 },
+        feed: 0,
+        spindle: 0,
+      }
+      this.emitter.emit('status', this.lastReport)
+    }
+  }
+
   private async trySetSetting(id: number, value: number): Promise<void> {
     try {
       await this.sendLine(`$${id}=${value}`)
@@ -351,6 +443,7 @@ export class GrblController {
     this.config = null
     this.laserHeld = false
     this.restoreLaserMode = null
+    this.unlockNeeded = false
   }
 
   private handleDisconnect(): void {

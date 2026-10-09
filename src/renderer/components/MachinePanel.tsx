@@ -33,6 +33,8 @@ export function MachinePanel() {
   const askLaserOn = useAppStore((state) => state.askLaserOn)
   const setLaser = useAppStore((state) => state.setLaser)
   const laserOn = useAppStore((state) => state.laserOn)
+  const alarm = useAppStore((state) => state.machineState === 'alarm')
+  const unlockMachine = useAppStore((state) => state.unlockMachine)
   const imported = useAppStore((state) => state.imported)
   const placement = useAppStore((state) => state.placement)
   const workArea = useAppStore((state) => state.workArea)
@@ -103,6 +105,19 @@ export function MachinePanel() {
         ) : view === 'machine' ? (
           <>
             <h2 className="text-center text-xl font-semibold">{COPY.machineControl}</h2>
+            {alarm ? (
+              <div className="mt-4 rounded-2xl border border-[#e8c9c4] bg-[#f8e8e5] px-4 py-3 text-center">
+                <p className="text-[13px] leading-relaxed text-[#c4473a]">{COPY.deviceAlarm}</p>
+                <button
+                  type="button"
+                  disabled={!connected}
+                  onClick={() => void unlockMachine()}
+                  className="mt-3 h-10 rounded-xl bg-[#c4473a] px-4 text-sm font-semibold text-white disabled:opacity-40"
+                >
+                  {COPY.unlockMachine}
+                </button>
+              </div>
+            ) : null}
             <LaserSwitch
               connected={connected}
               jobBusy={jobBusy}
