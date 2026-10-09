@@ -115,7 +115,8 @@ describe('GrblController', () => {
     expect(port.written.filter(isResetChunk).length).toBeGreaterThan(resetsBefore)
 
     const blob = port.written.map(asText).join('')
-    expect(blob).toContain('$H')
+    expect(blob).toContain('$X')
+    expect(blob).toContain('G0 X0 Y0')
     expect(blob).toContain('$J=G91 G21 X1 F100')
     expect(blob).toContain('!')
     expect(blob).toContain('~')
@@ -130,6 +131,22 @@ describe('GrblController', () => {
     await controller.setLaser(false)
     expect(controller.laserOn).toBe(false)
     expect(port.written.map(asText).join('')).toMatch(/\bM5\b/)
+    await serial.disconnect()
+  })
+
+  it('上电锁定时自动解除，之后才能开激光', async () => {
+    const backend = createMockEngraverBackend({ settings: { 22: 0, 130: 50, 131: 200 } })
+    const serial = new SerialManager(backend)
+    const controller = new GrblController(serial)
+    running.push(controller)
+    await serial.connect('mock://engraver')
+    await controller.identify()
+    expect(backend.firmware.state).toBe('Idle')
+    const blob = serialWrites(backend)
+    expect(blob).toMatch(/\$X/)
+    await controller.setLaser(true)
+    expect(controller.laserOn).toBe(true)
+    expect(serialWrites(backend)).toMatch(/M3 S200/)
     await serial.disconnect()
   })
 

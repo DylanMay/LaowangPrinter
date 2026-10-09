@@ -36,6 +36,8 @@ describe('傻瓜化主流程', () => {
     expect(panel).toContain('COPY.debugTitle')
     expect(panel).toContain('COPY.laserSwitch')
     expect(panel).toContain('onAskOn={askLaserOn}')
+    expect(panel).toContain('unlockMachine')
+    expect(panel).toContain('COPY.deviceAlarm')
     const machineView = panel.indexOf("view === 'machine'")
     const laserControl = panel.indexOf('<LaserSwitch')
     const jogSteps = panel.indexOf('{JOG_STEPS.map')

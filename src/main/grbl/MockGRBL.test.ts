@@ -15,6 +15,8 @@ describe('MockGRBL', () => {
 
     await port.write(Buffer.from([0x18]))
     expect(lines.join('')).toContain("Grbl 1.1h ['$' for help]")
+    expect(lines.join('')).toContain("$X' to unlock")
+    expect(fw.state).toBe('Alarm')
 
     await port.write('$$\n')
     expect(lines.join('')).toContain('$30=1000')
@@ -25,6 +27,12 @@ describe('MockGRBL', () => {
     await port.write('$G\n')
     expect(lines.join('')).toContain('[GC:')
 
+    await port.write('M3 S200\n')
+    expect(lines.join('')).toContain('error:9')
+    expect(fw.state).toBe('Alarm')
+
+    await port.write('$X\n')
+    expect(fw.state).toBe('Idle')
     await port.write('?')
     expect(lines.join('')).toContain('<Idle|')
     expect(fw.state).toBe('Idle')

@@ -35,7 +35,7 @@ describe('产品第 14 节 MVP 验收清单', () => {
     expect(USER_ERRORS.NO_DEVICE.userMessage).toContain('没有检测到雕刻机')
     expect(USER_ERRORS.PORT_BUSY.hint).toContain('其他软件')
     expect(USER_ERRORS.DEVICE_DISCONNECTED.hint).toContain('USB')
-    expect(USER_ERRORS.GRBL_ALARM.userMessage).toContain('异常')
+    expect(USER_ERRORS.GRBL_ALARM.userMessage).toContain('锁定')
   })
 
   it('模拟雕刻机只走环境变量，不出现在普通 UI', () => {

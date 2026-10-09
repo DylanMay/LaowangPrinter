@@ -19,6 +19,9 @@ const DEFAULT_SETTINGS: Record<number, number> = {
   0: 10,
   1: 25,
   10: 1,
+  20: 0,
+  21: 0,
+  22: 0,
   30: 1000,
   31: 0,
   32: 1,
@@ -110,8 +113,10 @@ export class MockGRBL {
 
   private reset(): void {
     this.lineBuf = ''
-    this.state = 'Idle'
+    this.pendingOk = null
+    this.state = 'Alarm'
     this.emit(`Grbl ${this.version} ['$' for help]\r\n`)
+    this.emit(`[MSG:'$H'|'$X' to unlock]\r\n`)
   }
 
   private handleLine(line: string): void {
@@ -121,23 +126,24 @@ export class MockGRBL {
     }
     if (line === '$$') {
       this.emitSettings()
-      this.replyOk()
+      this.replyOk(0, true)
       return
     }
     if (line === '$G') {
       this.emit(`[GC:${this.parserState}]\r\n`)
-      this.replyOk()
+      this.replyOk(0, true)
       return
     }
     if (line === '$I') {
       this.emit(`[VER:${this.version}.20190825:]\r\n`)
       this.emit(`[OPT:V,15,128]\r\n`)
-      this.replyOk()
+      this.replyOk(0, true)
       return
     }
     if (line === '$X') {
       this.state = 'Idle'
-      this.replyOk()
+      this.emit("[MSG:Caution: Unlocked]\r\n")
+      this.replyOk(0, true)
       return
     }
     const set = /^\$(\d+)=(-?\d+(?:\.\d+)?)$/.exec(line)
@@ -148,14 +154,22 @@ export class MockGRBL {
         return
       }
       this.settings[id] = Number(set[2])
-      this.replyOk()
+      this.replyOk(0, true)
       return
     }
     if (line === '$H') {
+      if ((this.settings[22] ?? 0) === 0) {
+        this.emit('error:5\r\n')
+        return
+      }
       this.state = 'Home'
       this.position = { x: 0, y: 0, z: 0 }
       this.state = 'Idle'
       this.replyOk()
+      return
+    }
+    if (this.state === 'Alarm') {
+      this.emit('error:9\r\n')
       return
     }
     const jog = /^\$J=/i.exec(line)
@@ -216,12 +230,12 @@ export class MockGRBL {
     )
   }
 
-  private replyOk(delayMs = 0): void {
+  private replyOk(delayMs = 0, immediate = false): void {
     const send = () => {
       this.emit('ok\r\n')
       if (this.state === 'Run' || this.state === 'Jog') this.state = 'Idle'
     }
-    if (this.holdOk) {
+    if (this.holdOk && !immediate) {
       this.pendingOk = send
       return
     }

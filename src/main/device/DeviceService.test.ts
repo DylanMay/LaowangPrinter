@@ -183,7 +183,7 @@ describe('DeviceService', () => {
     expect(status.errorMessage).toContain('USB')
   })
 
-  it('机器控制发送 $H / $J，停止不 Reset，任何路径不发送 M3', async () => {
+  it('机器控制发送回到原点 / 点动，停止不 Reset，任何路径不发送 M3', async () => {
     const backend = createMockEngraverBackend()
     const service = track(new DeviceService(new SerialManager(backend)))
     await service.connect()
@@ -206,10 +206,29 @@ describe('DeviceService', () => {
     ).toBe(resetsBefore)
 
     const blob = port.written.map((chunk) => (typeof chunk === 'string' ? chunk : chunk.toString('utf8'))).join('')
-    expect(blob).toContain('$H')
+    expect(blob).toContain('$X')
+    expect(blob).toContain('G0 X0 Y0')
     expect(blob).toContain('$J=G91 G21 Y-10 F500')
     expect(blob).toContain('$J=G91 G21 X1 F100')
     expect(blob).not.toMatch(/\bM3\b/)
+  })
+
+  it('锁定状态下确认开激光会先解除再开光', async () => {
+    const backend = createMockEngraverBackend({ settings: { 22: 0, 130: 50, 131: 200 } })
+    const service = track(new DeviceService(new SerialManager(backend)))
+    await service.connect()
+    expect(service.getStatus().machineState).not.toBe('alarm')
+    backend.firmware.simulateAlarm(1)
+    expect(service.getStatus().machineState).toBe('alarm')
+    const status = await service.setLaser(true, true)
+    expect(status.laserOn).toBe(true)
+    expect(status.machineState).not.toBe('alarm')
+    expect(backend.firmware.state).toBe('Idle')
+    const port = backend.backend.opened.get('mock://engraver')
+    if (!port) throw new Error('missing port')
+    const blob = port.written.map((chunk) => (typeof chunk === 'string' ? chunk : chunk.toString('utf8'))).join('')
+    expect(blob).toMatch(/\$X/)
+    expect(blob).toMatch(/\bM3 S200\b/)
   })
 
   it('打开激光需要确认，确认后才发送开光指令', async () => {
@@ -238,6 +257,15 @@ describe('toAppError', () => {
     expect(error.code).toBe('PORT_BUSY')
     expect(text).toContain('无法连接雕刻机')
     expect(text).not.toContain('Access denied')
+  })
+
+  it('把 error:9 当成锁定，提示解除异常', () => {
+    const error = toAppError(new GrblCommandError(9))
+    const text = formatUserError(error)
+    expect(error.code).toBe('GRBL_ALARM')
+    expect(text).toContain('锁定')
+    expect(text).toContain('解除异常')
+    expect(text).not.toContain('error:9')
   })
 
   it('把 error:20 翻译成中文，不展示协议码', () => {
