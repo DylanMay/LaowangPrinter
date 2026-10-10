@@ -142,6 +142,7 @@ export const COPY = {
   startLowPower: '开始低功率测试',
   lowPowerRunning: '低功率测试中…',
   effectDisclaimer: '实际效果会因机器、激光功率和材料不同而有所差异。',
+  compactPowerHint: '这台机器功率较小。深度会用较高功率慢慢刻，才容易留下痕迹。厚木板可能刻得出来，但不一定能切穿。',
   rangeLabel: '雕刻范围',
   preview: '预览',
   previewTitle: '雕刻预览',

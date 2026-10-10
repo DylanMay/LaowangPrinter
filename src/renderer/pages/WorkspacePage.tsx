@@ -1,4 +1,5 @@
 import { COPY } from '@shared/copy'
+import { isCompactDiodeBed } from '@shared/machine/Xingguang4N'
 import { canStart, isOutOfBounds, isTooLarge } from '@shared/geometry/CoordinateTransformer'
 import { formatDuration } from '@shared/gcode/GCodeEstimator'
 import { formatSizeMm } from '@shared/types/workspace'
@@ -117,6 +118,7 @@ export function WorkspacePage() {
 
 function PropertyPanel() {
   const placement = useAppStore((state) => state.placement)
+  const workArea = useAppStore((state) => state.workArea)
   const lockRatio = useAppStore((state) => state.lockRatio)
   const setLockRatio = useAppStore((state) => state.setLockRatio)
   const setWidth = useAppStore((state) => state.setWidth)
@@ -224,6 +226,9 @@ function PropertyPanel() {
               </button>
             ))}
           </div>
+          {workArea && isCompactDiodeBed(workArea) ? (
+            <p className="mt-2 text-[12px] leading-relaxed text-muted">{COPY.compactPowerHint}</p>
+          ) : null}
         </section>
 
         <section>
