@@ -278,6 +278,16 @@ describe('toAppError', () => {
     expect(text).not.toContain('error:9')
   })
 
+  it('把等待超时说明成机器还连着，而不是掉线', () => {
+    const error = toAppError(new Error('GRBL timeout'))
+    const text = formatUserError(error)
+    expect(error.code).toBe('MACHINE_TIMEOUT')
+    expect(text).toContain('还连着')
+    expect(text).not.toContain('USB')
+    expect(text).not.toContain('GRBL')
+    expect(text).not.toContain('timeout')
+  })
+
   it('把 error:20 翻译成中文，不展示协议码', () => {
     const error = toAppError(new GrblCommandError(20))
     const text = formatUserError(error)

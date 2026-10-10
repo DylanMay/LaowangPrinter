@@ -36,6 +36,8 @@ describe('产品第 14 节 MVP 验收清单', () => {
     expect(USER_ERRORS.PORT_BUSY.hint).toContain('其他软件')
     expect(USER_ERRORS.DEVICE_DISCONNECTED.hint).toContain('USB')
     expect(USER_ERRORS.GRBL_ALARM.userMessage).toContain('锁定')
+    expect(USER_ERRORS.MACHINE_TIMEOUT.hint).toContain('还连着')
+    expect(USER_ERRORS.MACHINE_TIMEOUT.userMessage).not.toContain('无法连接')
   })
 
   it('模拟雕刻机只走环境变量，不出现在普通 UI', () => {
