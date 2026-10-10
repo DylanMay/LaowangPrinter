@@ -131,6 +131,31 @@ describe('GCodeGenerator', () => {
     expect(small.lines.some((line) => / F200 S800$/.test(line))).toBe(true)
     expect(small.estimatedTime).toBeCloseTo(36, 5)
 
+    const longCompact = { widthMm: 50, heightMm: 200 }
+    const long = generateJobGcode({
+      document: doc,
+      placement: centerPlacement(40, 20, longCompact),
+      workArea: longCompact,
+      maxPower: 1000,
+      material: 'wood',
+      thicknessMm: 3,
+      effect: 'standard',
+    })
+    expect(long.lines).toContain('M3 S800')
+    expect(long.lines.some((line) => / F200 S800$/.test(line))).toBe(true)
+
+    const longDeep = generateJobGcode({
+      document: doc,
+      placement: centerPlacement(40, 20, longCompact),
+      workArea: longCompact,
+      maxPower: 1000,
+      material: 'wood',
+      thicknessMm: 3,
+      effect: 'deep',
+    })
+    expect(longDeep.lines).toContain('M3 S1000')
+    expect(longDeep.lines.some((line) => / F120 S1000$/.test(line))).toBe(true)
+
     const desk = generateJobGcode({
       document: doc,
       placement: centerPlacement(40, 20, workArea),
