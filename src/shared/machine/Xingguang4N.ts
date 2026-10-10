@@ -16,8 +16,9 @@ const COMPACT_MIN_SPEED = 120
 const COMPACT_MIN_POWER = 60
 const COMPACT_MAX_POWER = 100
 
+/** 窄边不超过 60 mm 即按小功率二极管加强。50×200 这类长床也属于此类。 */
 export function isCompactDiodeBed(workArea: { widthMm: number; heightMm: number }): boolean {
-  return Math.max(workArea.widthMm, workArea.heightMm) <= COMPACT_BED_MAX_MM
+  return Math.min(workArea.widthMm, workArea.heightMm) <= COMPACT_BED_MAX_MM
 }
 
 export function tuneCutParams(params: CutParams, workArea: { widthMm: number; heightMm: number }): CutParams {

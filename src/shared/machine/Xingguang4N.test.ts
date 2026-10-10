@@ -12,6 +12,11 @@ describe('星光4N', () => {
     const wood = { speed: 1000, power: 20 }
     expect(tuneCutParams(wood, { widthMm: 300, heightMm: 200 })).toEqual(wood)
     expect(tuneCutParams(wood, { widthMm: 50, heightMm: 50 })).toEqual({ speed: 200, power: 80 })
+    expect(tuneCutParams(wood, { widthMm: 50, heightMm: 200 })).toEqual({ speed: 200, power: 80 })
+    expect(tuneCutParams({ speed: 600, power: 30 }, { widthMm: 50, heightMm: 200 })).toEqual({
+      speed: 120,
+      power: 100,
+    })
     expect(tuneCutParams({ speed: 1500, power: 15 }, { widthMm: 42, heightMm: 42 })).toEqual({
       speed: 300,
       power: 60,

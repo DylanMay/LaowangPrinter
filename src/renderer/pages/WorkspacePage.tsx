@@ -1,4 +1,5 @@
 import { COPY } from '@shared/copy'
+import { isCompactDiodeBed } from '@shared/machine/Xingguang4N'
 import { canStart, isOutOfBounds, isTooLarge } from '@shared/geometry/CoordinateTransformer'
 import { formatDuration } from '@shared/gcode/GCodeEstimator'
 import { formatSizeMm } from '@shared/types/workspace'
@@ -7,7 +8,7 @@ import { useAppStore } from '../store/appStore'
 import { PreviewOverlay } from '../components/PreviewOverlay'
 import { WorkspaceCanvas } from '../components/WorkspaceCanvas'
 import { jobGcode } from '../gcode/jobGcode'
-import { materialLabel, workModeHint } from '../labels'
+import { cutParamsSummary, materialLabel, workModeHint } from '../labels'
 
 export function WorkspacePage() {
   const imported = useAppStore((state) => state.imported)
@@ -117,6 +118,7 @@ export function WorkspacePage() {
 
 function PropertyPanel() {
   const placement = useAppStore((state) => state.placement)
+  const workArea = useAppStore((state) => state.workArea)
   const lockRatio = useAppStore((state) => state.lockRatio)
   const setLockRatio = useAppStore((state) => state.setLockRatio)
   const setWidth = useAppStore((state) => state.setWidth)
@@ -224,6 +226,14 @@ function PropertyPanel() {
               </button>
             ))}
           </div>
+          {workArea ? (
+            <p className="mt-2 text-[12px] leading-relaxed text-muted">
+              {cutParamsSummary({ material, thicknessMm, effect, workArea, workMode })}
+            </p>
+          ) : null}
+          {workArea && isCompactDiodeBed(workArea) ? (
+            <p className="mt-2 text-[12px] leading-relaxed text-muted">{COPY.compactPowerHint}</p>
+          ) : null}
         </section>
 
         <section>
