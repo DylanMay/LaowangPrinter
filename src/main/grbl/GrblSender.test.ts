@@ -3,7 +3,7 @@ import { resolve } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { SerialManager } from '../serial/SerialManager'
 import { GrblController } from './GrblController'
-import { GrblSender } from './GrblSender'
+import { GrblSender, timeoutFor } from './GrblSender'
 import { createMockEngraverBackend } from './MockGRBL'
 import type { JobProgress } from '@shared/types/job'
 
@@ -155,6 +155,32 @@ describe('GrblSender', () => {
     await completed
   })
 
+  it('开光指令会等前面的移动走完，不会误报成掉线', async () => {
+    const ctx = await setup({ delayMotionMs: 2000 })
+    const completed = once(ctx.sender, 'completed')
+    const errored = once(ctx.sender, 'error')
+    await ctx.sender.start({
+      lines: ['G21', 'G0 X10 Y10', 'M3 S200', 'G1 X20 Y10 F1000', 'M5'],
+      estimatedTime: 4,
+      dryRun: false,
+    })
+    const result = await Promise.race([
+      completed.then((progress) => progress),
+      errored.then((progress) => progress),
+    ])
+    expect(result.state).toBe('completed')
+    expect(result.errorMessage).toBeUndefined()
+    expect(ctx.backend.firmware.spindleOn).toBe(false)
+  })
+
+  it('开光和关光按移动时间等待应答', () => {
+    expect(timeoutFor('G0 X7 Y118')).toBe(60_000)
+    expect(timeoutFor('M3 S200')).toBe(60_000)
+    expect(timeoutFor('S200')).toBe(60_000)
+    expect(timeoutFor('M5')).toBe(60_000)
+    expect(timeoutFor('G21')).toBe(1500)
+  })
+
   it('低功率测试默认不自动跑，必须单独确认', async () => {
     const ctx = await setup()
     const before = ctx.port.written.length
@@ -170,8 +196,8 @@ describe('GrblSender', () => {
     expect(ctx.sender.getProgress().state).toBe('idle')
   })
 
-  async function setup() {
-    const backend = createMockEngraverBackend()
+  async function setup(options: Parameters<typeof createMockEngraverBackend>[0] = {}) {
+    const backend = createMockEngraverBackend(options)
     const serial = new SerialManager(backend)
     const controller = new GrblController(serial)
     running.push({ controller, serial })

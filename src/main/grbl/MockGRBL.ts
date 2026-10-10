@@ -56,6 +56,8 @@ export class MockGRBL {
   private pendingOk: (() => void) | null = null
   private holdTimer: ReturnType<typeof setTimeout> | null = null
   private motionTimer: ReturnType<typeof setTimeout> | null = null
+  private motionIdleTimer: ReturnType<typeof setTimeout> | null = null
+  private motionEndsAt = 0
 
   constructor(options: MockGrblOptions = {}) {
     this.version = options.version ?? '1.1h'
@@ -126,6 +128,8 @@ export class MockGRBL {
       (this.state === 'Hold' && (this.holdPending || this.feedRate > 0))
     this.clearHoldTimer()
     this.clearMotionTimer()
+    this.clearMotionIdleTimer()
+    this.motionEndsAt = 0
     this.lineBuf = ''
     this.pendingOk = null
     this.holdPending = false
@@ -213,7 +217,16 @@ export class MockGRBL {
     }
     if (/^G21\b|^G90\b|^G0\b|^G1\b|^M3\b|^M4\b|^M5\b|^S\d+/i.test(line)) {
       this.applyMotion(line)
-      this.replyOk(this.delayMotionMs > 0 && /^(G0|G1)\b/i.test(line) ? this.delayMotionMs : 0)
+      if (/^(G0|G1)\b/i.test(line) && this.delayMotionMs > 0) {
+        this.scheduleMotion(this.delayMotionMs)
+        this.replyOk(0)
+        return
+      }
+      if (/^(M3|M4|M5)\b|^S\d+/i.test(line)) {
+        this.replyOk(this.remainingMotionMs())
+        return
+      }
+      this.replyOk()
       return
     }
     this.emit('error:20\r\n')
@@ -275,9 +288,30 @@ export class MockGRBL {
     this.holdTimer = null
   }
 
+  private scheduleMotion(ms: number): void {
+    this.clearMotionIdleTimer()
+    this.motionEndsAt = Date.now() + ms
+    this.motionIdleTimer = setTimeout(() => {
+      this.motionIdleTimer = null
+      this.motionEndsAt = 0
+      if (this.state === 'Run') this.state = 'Idle'
+    }, ms)
+  }
+
+  private remainingMotionMs(): number {
+    return Math.max(0, this.motionEndsAt - Date.now())
+  }
+
+  private clearMotionIdleTimer(): void {
+    if (!this.motionIdleTimer) return
+    clearTimeout(this.motionIdleTimer)
+    this.motionIdleTimer = null
+  }
+
   private replyOk(delayMs = 0, immediate = false): void {
     const send = () => {
       this.emit('ok\r\n')
+      if (this.remainingMotionMs() > 0 && this.state === 'Run') return
       if (this.state === 'Run' || this.state === 'Jog') this.state = 'Idle'
     }
     if (this.holdOk && !immediate) {

@@ -236,8 +236,12 @@ function isLaserOn(line: string): boolean {
   return Boolean(spindle && Number(spindle[1]) > 0)
 }
 
-function timeoutFor(line: string): number {
-  return /^(G0|G1|\$H|\$J=)/i.test(line.trim()) ? MOTION_TIMEOUT_MS : LINE_TIMEOUT_MS
+export function timeoutFor(line: string): number {
+  const trimmed = line.trim()
+  if (/^(G0|G1|G2|G3)\b/i.test(trimmed) || /^(\$H|\$J=)/i.test(trimmed)) return MOTION_TIMEOUT_MS
+  // M3/M5/S 会等前面的移动走完再应答，不能按短超时算。
+  if (/^(M3|M4|M5)\b/i.test(trimmed) || /^S[0-9.]+/i.test(trimmed)) return MOTION_TIMEOUT_MS
+  return LINE_TIMEOUT_MS
 }
 
 function toJobState(state: SenderState): JobState {
