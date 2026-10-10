@@ -34,6 +34,7 @@ describe('formatDiagnostics', () => {
         totalLines: 20,
         currentLine: 'G1 X10 Y10 F200 S800',
         dryRun: false,
+        errorMessage: '这一步没有完成。机器还连着，请再点开始。不用拔线。',
       },
     })
     expect(text).toContain('老王打印机 0.1.0')
@@ -42,6 +43,7 @@ describe('formatDiagnostics', () => {
     expect(text).toContain('$21=1')
     expect(text).toContain('/dev/cu.wchusbserial123')
     expect(text).toContain('G1 X10 Y10 F200 S800')
+    expect(text).toContain('任务说明 这一步没有完成')
     expect(text).toContain('> M3 S800')
   })
 })
