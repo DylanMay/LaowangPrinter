@@ -12,6 +12,8 @@ export type MockGrblOptions = {
   settings?: Record<number, number>
   delayOkMs?: number
   delayMotionMs?: number
+  /** 收到 ! 后保持 Hold:1 / 进给 > 0 的毫秒数，用来模拟减速。 */
+  holdSettleMs?: number
   unknownSettings?: number[]
 }
 
@@ -45,10 +47,15 @@ export class MockGRBL {
   holdOk = false
   spindleOn = false
   delayMotionMs = 0
+  holdSettleMs = 0
+  holdPending = false
+  feedRate = 0
   private unknownSettings: number[]
   private port: MockGrblHost | null = null
   private lineBuf = ''
   private pendingOk: (() => void) | null = null
+  private holdTimer: ReturnType<typeof setTimeout> | null = null
+  private motionTimer: ReturnType<typeof setTimeout> | null = null
 
   constructor(options: MockGrblOptions = {}) {
     this.version = options.version ?? '1.1h'
@@ -61,6 +68,7 @@ export class MockGRBL {
     }
     this.holdOk = (options.delayOkMs ?? 0) > 0
     this.delayMotionMs = options.delayMotionMs ?? 0
+    this.holdSettleMs = options.holdSettleMs ?? 0
   }
 
   attach(port: MockGrblHost): this {
@@ -81,7 +89,7 @@ export class MockGRBL {
         continue
       }
       if (char === '!') {
-        if (this.state === 'Run' || this.state === 'Jog') this.state = 'Hold'
+        if (this.state === 'Run' || this.state === 'Jog') this.enterHold()
         continue
       }
       if (char === '~') {
@@ -112,9 +120,16 @@ export class MockGRBL {
   }
 
   private reset(): void {
-    const moving = this.state === 'Run' || this.state === 'Jog'
+    const moving =
+      this.state === 'Run' ||
+      this.state === 'Jog' ||
+      (this.state === 'Hold' && (this.holdPending || this.feedRate > 0))
+    this.clearHoldTimer()
+    this.clearMotionTimer()
     this.lineBuf = ''
     this.pendingOk = null
+    this.holdPending = false
+    this.feedRate = 0
     this.state = 'Alarm'
     if (moving) this.emit('ALARM:3\r\n')
     this.emit(`Grbl ${this.version} ['$' for help]\r\n`)
@@ -230,9 +245,34 @@ export class MockGRBL {
 
   private sendStatus(): void {
     const { x, y, z } = this.position
+    const label =
+      this.state === 'Hold' ? (this.holdPending ? 'Hold:1' : 'Hold:0') : this.state
     this.emit(
-      `<${this.state}|MPos:${x.toFixed(3)},${y.toFixed(3)},${z.toFixed(3)}|FS:0,0>\r\n`,
+      `<${label}|MPos:${x.toFixed(3)},${y.toFixed(3)},${z.toFixed(3)}|FS:${this.feedRate},0>\r\n`,
     )
+  }
+
+  private enterHold(): void {
+    this.state = 'Hold'
+    this.clearHoldTimer()
+    if (this.holdSettleMs > 0) {
+      this.holdPending = true
+      this.feedRate = 500
+      this.holdTimer = setTimeout(() => {
+        this.holdPending = false
+        this.feedRate = 0
+        this.holdTimer = null
+      }, this.holdSettleMs)
+      return
+    }
+    this.holdPending = false
+    this.feedRate = 0
+  }
+
+  private clearHoldTimer(): void {
+    if (!this.holdTimer) return
+    clearTimeout(this.holdTimer)
+    this.holdTimer = null
   }
 
   private replyOk(delayMs = 0, immediate = false): void {
@@ -245,10 +285,20 @@ export class MockGRBL {
       return
     }
     if (delayMs > 0) {
-      setTimeout(send, delayMs)
+      this.clearMotionTimer()
+      this.motionTimer = setTimeout(() => {
+        this.motionTimer = null
+        send()
+      }, delayMs)
       return
     }
     send()
+  }
+
+  private clearMotionTimer(): void {
+    if (!this.motionTimer) return
+    clearTimeout(this.motionTimer)
+    this.motionTimer = null
   }
 
   private emit(text: string): void {

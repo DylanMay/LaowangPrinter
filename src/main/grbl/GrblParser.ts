@@ -54,7 +54,10 @@ export function feedGrblBuffer(
 function parseStatus(line: string): GrblMessage {
   const inner = line.slice(1, -1)
   const parts = inner.split('|')
-  const state = normalizeRunState(parts[0]?.split(':')[0] ?? 'Idle')
+  const stateToken = parts[0] ?? 'Idle'
+  const [stateName, sub] = stateToken.split(':')
+  const state = normalizeRunState(stateName ?? 'Idle')
+  const holdPending = state === 'Hold' && sub === '1'
   let position = { x: 0, y: 0, z: 0 }
   let feed = 0
   let spindle = 0
@@ -74,7 +77,7 @@ function parseStatus(line: string): GrblMessage {
     }
   }
 
-  return { kind: 'status', report: { state, position, feed, spindle } }
+  return { kind: 'status', report: { state, position, feed, spindle, holdPending } }
 }
 
 function normalizeRunState(token: string): GrblRunState {

@@ -49,6 +49,36 @@ describe('JobService', () => {
     expect(ctx.job.getProgress().state).toBe('completed')
   })
 
+  it('正式雕刻前不会关掉机器控制里已打开的激光', async () => {
+    const ctx = await setup()
+    await ctx.device.setLaser(true, true)
+    expect(ctx.backend.firmware.spindleOn).toBe(true)
+    expect(ctx.backend.firmware.settings[32]).toBe(0)
+    const before = ctx.port.written.length
+    const completed = once(ctx.job)
+    await ctx.job.start({ lines: SAMPLE, estimatedTime: 4, dryRun: false, confirmed: true })
+    await completed
+    const sent = ctx.port.written.slice(before).map(asText).join('')
+    const g21 = sent.search(/G21/)
+    expect(g21).toBeGreaterThanOrEqual(0)
+    expect(sent.slice(0, g21)).not.toMatch(/\bM5\b/)
+    expect(sent).toMatch(/\bM3 S200\b/)
+    expect(ctx.backend.firmware.settings[32]).toBe(1)
+    expect(ctx.job.getProgress().state).toBe('completed')
+  })
+
+  it('空载测试会关掉已打开的激光', async () => {
+    const ctx = await setup()
+    await ctx.device.setLaser(true, true)
+    expect(ctx.backend.firmware.spindleOn).toBe(true)
+    const completed = once(ctx.job)
+    await ctx.job.start({ lines: SAMPLE, estimatedTime: 4, dryRun: true })
+    await completed
+    expect(ctx.backend.firmware.spindleOn).toBe(false)
+    expect(ctx.port.written.map(asText).join('')).toMatch(/\bM5\b/)
+    expect(ctx.job.getProgress().state).toBe('completed')
+  })
+
   it('低功率测试即使已确认任务，仍需单独确认才开光', async () => {
     const ctx = await setup()
     const before = gcodeWrites(ctx.port.written).length

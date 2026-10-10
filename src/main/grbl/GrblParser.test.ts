@@ -25,13 +25,18 @@ describe('GrblParser', () => {
         position: { x: 0, y: 0, z: 0 },
         feed: 0,
         spindle: 0,
+        holdPending: false,
       },
     })
     expect(parseGrblLine('<Run|WPos:12.5,8,0|FS:1000,400>').kind).toBe('status')
     const hold = parseGrblLine('<Hold:0|MPos:1,2,3|FS:0,0>')
     expect(hold).toMatchObject({
       kind: 'status',
-      report: { state: 'Hold', position: { x: 1, y: 2, z: 3 } },
+      report: { state: 'Hold', position: { x: 1, y: 2, z: 3 }, holdPending: false, feed: 0 },
+    })
+    expect(parseGrblLine('<Hold:1|MPos:37.003,84.556,0.000|FS:233,0>')).toMatchObject({
+      kind: 'status',
+      report: { state: 'Hold', holdPending: true, feed: 233, position: { x: 37.003, y: 84.556, z: 0 } },
     })
   })
 
