@@ -7,6 +7,7 @@ export type AppErrorCode =
   | 'GRBL_ERROR'
   | 'GRBL_ALARM'
   | 'LASER_BLOCKED'
+  | 'MACHINE_TIMEOUT'
   | 'UNKNOWN'
 
 export type AppError = {
@@ -40,6 +41,10 @@ export const USER_ERRORS: Record<AppErrorCode, { userMessage: string; hint?: str
   LASER_BLOCKED: {
     userMessage: '不会开启激光。',
     hint: '点动只会移动机器。',
+  },
+  MACHINE_TIMEOUT: {
+    userMessage: '这一步没有完成。',
+    hint: '机器还连着，请再点开始。不用拔线。',
   },
   UNKNOWN: {
     userMessage: '无法连接雕刻机。',
@@ -101,6 +106,9 @@ function readCode(error: unknown, technicalDetail: string): AppErrorCode {
   }
   if (/alarm:\s*\d+/i.test(technicalDetail)) {
     return 'GRBL_ALARM'
+  }
+  if (/grbl timeout/i.test(technicalDetail)) {
+    return 'MACHINE_TIMEOUT'
   }
   return 'UNKNOWN'
 }
