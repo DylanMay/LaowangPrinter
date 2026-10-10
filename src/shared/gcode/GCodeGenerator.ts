@@ -1,7 +1,7 @@
 import { machineBounds, machinePaths } from '@shared/geometry/CoordinateTransformer'
 import { pathLength } from '@shared/geometry/polyline'
-import { tuneCutParams } from '@shared/machine/Xingguang4N'
-import { cutParamsFor, getMaterialPreset, type EffectLevel, type MaterialId, type MaterialPreset } from '@shared/materials/MaterialPreset'
+import { getMaterialPreset, type EffectLevel, type MaterialId, type MaterialPreset } from '@shared/materials/MaterialPreset'
+import { resolvePresetParams } from '@shared/materials/resolveCutParams'
 import type { SvgDocument } from '@shared/types/svg'
 import type { GCodeDocument } from '@shared/types/gcode'
 import type { Placement, WorkArea } from '@shared/types/workspace'
@@ -50,7 +50,7 @@ export function generateJobGcode(input: GenerateJobInput): GCodeDocument {
 }
 
 export function generateGcode(input: GenerateGcodeInput): GCodeDocument {
-  const params = tuneCutParams(cutParamsFor(input.preset, input.effect), input.workArea)
+  const params = resolvePresetParams(input.preset, input.effect, input.workArea, Boolean(input.dryRun))
   const speed = spindleSpeed(input.maxPower, params.power)
   const paths = machinePaths(input.document, input.placement, input.workArea)
   const lines = ['G21', 'G90']

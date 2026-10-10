@@ -8,7 +8,7 @@ import { useAppStore } from '../store/appStore'
 import { PreviewOverlay } from '../components/PreviewOverlay'
 import { WorkspaceCanvas } from '../components/WorkspaceCanvas'
 import { jobGcode } from '../gcode/jobGcode'
-import { materialLabel, workModeHint } from '../labels'
+import { cutParamsSummary, materialLabel, workModeHint } from '../labels'
 
 export function WorkspacePage() {
   const imported = useAppStore((state) => state.imported)
@@ -226,6 +226,11 @@ function PropertyPanel() {
               </button>
             ))}
           </div>
+          {workArea ? (
+            <p className="mt-2 text-[12px] leading-relaxed text-muted">
+              {cutParamsSummary({ material, thicknessMm, effect, workArea, workMode })}
+            </p>
+          ) : null}
           {workArea && isCompactDiodeBed(workArea) ? (
             <p className="mt-2 text-[12px] leading-relaxed text-muted">{COPY.compactPowerHint}</p>
           ) : null}

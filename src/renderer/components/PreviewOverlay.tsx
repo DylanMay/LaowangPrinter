@@ -3,7 +3,7 @@ import { formatDuration } from '@shared/gcode/GCodeEstimator'
 import { formatSizeMm } from '@shared/types/workspace'
 import { PreviewCanvas } from './PreviewCanvas'
 import { jobGcode } from '../gcode/jobGcode'
-import { materialLabel, startLabel } from '../labels'
+import { cutParamsSummary, materialLabel, startLabel } from '../labels'
 import { useAppStore } from '../store/appStore'
 
 export function PreviewOverlay() {
@@ -65,6 +65,9 @@ export function PreviewOverlay() {
           <b className="font-semibold text-ink">
             {workMode === 'dry' ? COPY.dryRun : workMode === 'low' ? COPY.lowPower : COPY.engrave}
           </b>
+        </p>
+        <p className="text-[12px] leading-relaxed text-muted">
+          {cutParamsSummary({ material, thicknessMm, effect, workArea, workMode })}
         </p>
         <p className="text-[12px] leading-relaxed text-muted">{COPY.effectDisclaimer}</p>
         <div className="mt-auto flex flex-col gap-2">

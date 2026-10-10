@@ -17,6 +17,7 @@ describe('傻瓜化主流程', () => {
     expect(workspace).toContain('PreviewOverlay')
     expect(workspace).toContain('COPY.preview')
     expect(workspace).toContain('COPY.startEngrave')
+    expect(workspace).toContain('cutParamsSummary')
     expect(workspace).not.toMatch(/COPY\.selectAgain/)
   })
 
