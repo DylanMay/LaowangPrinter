@@ -152,6 +152,48 @@ describe('GrblController', () => {
     await serial.disconnect()
   })
 
+  it('停止时等到减速完成再复位，避免还在动时复位', async () => {
+    const backend = createMockEngraverBackend({
+      settings: { 22: 0, 130: 50, 131: 200 },
+      delayMotionMs: 400,
+      holdSettleMs: 80,
+    })
+    const serial = new SerialManager(backend)
+    const controller = new GrblController(serial)
+    running.push(controller)
+    await serial.connect('mock://engraver')
+    await controller.identify()
+    const motion = controller.sendLine('G1 X10 F500', 5000)
+    await waitUntil(() => backend.firmware.state === 'Run')
+    await controller.abortCycle()
+    expect(controller.lastAlarmCode).not.toBe('ALARM:3')
+    expect(backend.firmware.state).toBe('Idle')
+    expect(controller.machineState).not.toBe('alarm')
+    await motion.catch(() => undefined)
+    await serial.disconnect()
+  })
+
+  it('正式雕刻前恢复激光模式，但不会关掉已打开的激光', async () => {
+    const backend = createMockEngraverBackend({ settings: { 22: 0, 32: 1 } })
+    const serial = new SerialManager(backend)
+    const controller = new GrblController(serial)
+    running.push(controller)
+    await serial.connect('mock://engraver')
+    await controller.identify()
+    await controller.setLaser(true)
+    expect(backend.firmware.settings[32]).toBe(0)
+    expect(backend.firmware.spindleOn).toBe(true)
+    const before = serialWrites(backend)
+    await controller.prepareEngrave()
+    const added = serialWrites(backend).slice(before.length)
+    expect(added).toMatch(/\$32=1/)
+    expect(added).not.toMatch(/\bM5\b/)
+    expect(backend.firmware.spindleOn).toBe(true)
+    expect(backend.firmware.settings[32]).toBe(1)
+    expect(controller.laserOn).toBe(false)
+    await serial.disconnect()
+  })
+
   it('暂停中开激光会先停干净再开光', async () => {
     const backend = createMockEngraverBackend({ settings: { 22: 0 } })
     const serial = new SerialManager(backend)
@@ -243,4 +285,19 @@ function asText(chunk: string | Buffer): string {
 function isResetChunk(chunk: string | Buffer): boolean {
   if (typeof chunk === 'string') return chunk.length === 1 && chunk.charCodeAt(0) === 0x18
   return chunk.length === 1 && chunk[0] === 0x18
+}
+
+function waitUntil(predicate: () => boolean, ms = 1000): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const started = Date.now()
+    const timer = setInterval(() => {
+      if (predicate()) {
+        clearInterval(timer)
+        resolve()
+      } else if (Date.now() - started >= ms) {
+        clearInterval(timer)
+        reject(new Error('timeout'))
+      }
+    }, 10)
+  })
 }
