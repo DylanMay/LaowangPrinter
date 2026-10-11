@@ -335,6 +335,7 @@ export class GrblController {
       return
     }
     if (message.kind === 'status') {
+      this.statusSerial += 1
       this.lastReport = message.report
       this.statusEpoch += 1
       if (message.report.state !== 'Alarm') this.unlockNeeded = false
@@ -490,6 +491,7 @@ export class GrblController {
     this.parserState = null
     this.settings = new Map()
     this.lastReport = null
+    this.statusSerial = 0
     this.config = null
     this.laserHeld = false
     this.restoreLaserMode = null

@@ -134,10 +134,15 @@ export class GrblSender {
         this.currentLine = line
         this.emitProgress()
         if (isSpindleSync(line)) {
-          await this.controller.waitUntilIdle()
+          await this.controller.waitUntilIdle(idleBudgetMs(this.estimatedTime), () => this.state !== 'running')
         }
         if (this.shouldStop()) return
-        await this.controller.sendLine(line, timeoutFor(line), !this.dryRun)
+        if (this.state !== 'running') {
+          await this.waitWhilePaused()
+          continue
+        }
+        const budget = isSpindleSync(line) ? idleBudgetMs(this.estimatedTime) : timeoutFor(line)
+        await this.controller.sendLine(line, budget, !this.dryRun)
         if (this.shouldStop()) return
         this.index += 1
         this.currentLine = ''
@@ -244,6 +249,12 @@ function isLaserOn(line: string): boolean {
   if (/^M3\b|^M4\b/i.test(line.trim())) return true
   const spindle = /\bS([0-9.]+)/i.exec(line)
   return Boolean(spindle && Number(spindle[1]) > 0)
+}
+
+/** 关光要等整段刀路走完。预算按整次任务的预计时间，并留出余量。 */
+export function idleBudgetMs(estimatedSeconds: number): number {
+  const fromJob = Math.ceil(Math.max(0, estimatedSeconds) * 1000) + 30_000
+  return Math.max(MOTION_TIMEOUT_MS, fromJob)
 }
 
 export function timeoutFor(line: string): number {
