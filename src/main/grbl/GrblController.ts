@@ -335,7 +335,6 @@ export class GrblController {
       return
     }
     if (message.kind === 'status') {
-      this.statusSerial += 1
       this.lastReport = message.report
       this.statusEpoch += 1
       if (message.report.state !== 'Alarm') this.unlockNeeded = false
@@ -426,8 +425,11 @@ export class GrblController {
     return report.state === 'Hold' && !report.holdPending && report.feed === 0
   }
 
-  /** 开光/关光会等移动走完才应答。必须先拿到新的状态，不能把上一刀的空闲当成已经停。 */
-  async waitUntilIdle(ms = PATH_WAIT_MS): Promise<void> {
+  /**
+   * 开光/关光会等移动走完才应答。必须先拿到新的状态，不能把上一刀的空闲当成已经停。
+   * shouldYield 为真时先返回，让发送循环去处理暂停或停止。
+   */
+  async waitUntilIdle(ms = PATH_WAIT_MS, shouldYield?: () => boolean): Promise<void> {
     const idle = () => {
       const report = this.lastReport
       if (!report) return false
@@ -435,13 +437,17 @@ export class GrblController {
       return report.feed === 0
     }
     const deadline = Date.now() + ms
-    await this.refreshStatus()
-    if (idle()) return
     while (Date.now() < deadline) {
+      if (shouldYield?.()) return
+      const epoch = this.statusEpoch
       await this.refreshStatus()
-      if (idle()) return
-      if (await this.waitFor(idle, 120)) return
+      if (shouldYield?.()) return
+      if (this.statusEpoch > epoch && idle()) return
+      if (await this.waitFor(() => (shouldYield?.() ?? false) || (this.statusEpoch > epoch && idle()), 120)) {
+        return
+      }
     }
+    if (shouldYield?.()) return
     throw new Error('GRBL timeout')
   }
 
@@ -491,7 +497,6 @@ export class GrblController {
     this.parserState = null
     this.settings = new Map()
     this.lastReport = null
-    this.statusSerial = 0
     this.config = null
     this.laserHeld = false
     this.restoreLaserMode = null
