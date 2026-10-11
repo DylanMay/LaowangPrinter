@@ -259,9 +259,10 @@ function waitForState(sender: GrblSender, state: JobProgress['state']): Promise<
 }
 
 async function drain(ctx: { backend: ReturnType<typeof createMockEngraverBackend> }): Promise<void> {
-  for (let i = 0; i < 20; i += 1) {
+  const started = Date.now()
+  while (Date.now() - started < 1500) {
     await ctx.backend.firmware.releaseOk()
-    await tick()
+    await new Promise((resolve) => setTimeout(resolve, 25))
   }
 }
 

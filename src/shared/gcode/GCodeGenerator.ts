@@ -106,12 +106,25 @@ function samePoint(a: { x: number; y: number }, b: { x: number; y: number }): bo
   return Math.abs(a.x - b.x) < 1e-6 && Math.abs(a.y - b.y) < 1e-6
 }
 
+/** 短于光斑的碎步会让激光在段与段之间灭掉，弯线就发虚。 */
+const MIN_SEGMENT_MM = 0.2
+
 function dedupe(points: { x: number; y: number }[]): { x: number; y: number }[] {
-  const result: { x: number; y: number }[] = []
-  for (const point of points) {
-    const last = result[result.length - 1]
-    if (last && samePoint(last, point)) continue
+  if (points.length === 0) return []
+  const result = [points[0]!]
+  for (let i = 1; i < points.length - 1; i += 1) {
+    const point = points[i]!
+    const last = result[result.length - 1]!
+    if (Math.hypot(last.x - point.x, last.y - point.y) < MIN_SEGMENT_MM) continue
     result.push(point)
+  }
+  const end = points[points.length - 1]!
+  const last = result[result.length - 1]!
+  if (samePoint(last, end)) return result
+  if (Math.hypot(last.x - end.x, last.y - end.y) < MIN_SEGMENT_MM && result.length > 1) {
+    result[result.length - 1] = end
+  } else {
+    result.push(end)
   }
   return result
 }

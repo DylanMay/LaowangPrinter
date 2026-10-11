@@ -290,6 +290,40 @@ describe('GrblController', () => {
     await serial.disconnect()
   })
 
+  it('暂停或停止时关光等待会立刻让出', async () => {
+    const backend = createMockEngraverBackend({ delayMotionMs: 5000, settings: { 22: 0, 130: 50, 131: 200 } })
+    const serial = new SerialManager(backend)
+    const controller = new GrblController(serial)
+    running.push(controller)
+    await serial.connect('mock://engraver')
+    await controller.identify()
+    const pending = controller.sendLine('G1 X40 F120', 5000)
+    await waitUntil(() => backend.firmware.state === 'Run')
+    let yieldNow = false
+    const started = Date.now()
+    const waiting = controller.waitUntilIdle(3000, () => yieldNow)
+    yieldNow = true
+    await waiting
+    expect(Date.now() - started).toBeLessThan(1000)
+    await pending
+    await serial.disconnect()
+  })
+
+  it('关光前不会把还没起步的 Idle 当成这一笔已经结束', async () => {
+    const backend = createMockEngraverBackend({ settings: { 22: 0, 130: 50, 131: 200 } })
+    const serial = new SerialManager(backend)
+    const controller = new GrblController(serial)
+    running.push(controller)
+    await serial.connect('mock://engraver')
+    await controller.identify()
+    const started = Date.now()
+    await controller.waitUntilIdle(3000, undefined, true)
+    const elapsed = Date.now() - started
+    expect(elapsed).toBeGreaterThanOrEqual(700)
+    expect(elapsed).toBeLessThan(2500)
+    await serial.disconnect()
+  })
+
   it('没有激光模式参数的旧固件仍能完成识别', async () => {
     const backend = createMockEngraverBackend({ unknownSettings: [32] })
     const serial = new SerialManager(backend)
