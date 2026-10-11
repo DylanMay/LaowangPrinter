@@ -270,6 +270,26 @@ describe('GrblController', () => {
     expect(config.grblVersion).toBe('1.1h')
     await serial.disconnect()
   })
+
+  it('关光前不把上一刀的空闲当成已经停，会等到进给真正结束', async () => {
+    const backend = createMockEngraverBackend({
+      settings: { 22: 0, 130: 50, 131: 200 },
+      delayMotionMs: 400,
+    })
+    const serial = new SerialManager(backend)
+    const controller = new GrblController(serial)
+    running.push(controller)
+    await serial.connect('mock://engraver')
+    await controller.identify()
+    const motion = controller.sendLine('G1 X10 F120', 5000)
+    await waitUntil(() => backend.firmware.state === 'Run')
+    const started = Date.now()
+    await controller.waitUntilIdle()
+    expect(Date.now() - started).toBeGreaterThan(250)
+    expect(backend.firmware.state).toBe('Idle')
+    await motion
+    await serial.disconnect()
+  })
 })
 
 function serialWrites(backend: ReturnType<typeof createMockEngraverBackend>): string {

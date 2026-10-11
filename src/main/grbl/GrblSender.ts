@@ -9,6 +9,7 @@ import { GrblController } from './GrblController'
 
 const LINE_TIMEOUT_MS = 1500
 const MOTION_TIMEOUT_MS = 60_000
+const PATH_WAIT_MS = 600_000
 
 type SenderEvents = {
   progress: [JobProgress]
@@ -249,7 +250,7 @@ export function timeoutFor(line: string): number {
   const trimmed = line.trim()
   if (/^(G0|G1|G2|G3)\b/i.test(trimmed) || /^(\$H|\$J=)/i.test(trimmed)) return MOTION_TIMEOUT_MS
   // M3/M5/S 会等前面的移动走完再应答，不能按短超时算。
-  if (/^(M3|M4|M5)\b/i.test(trimmed) || /^S[0-9.]+/i.test(trimmed)) return MOTION_TIMEOUT_MS
+  if (/^(M3|M4|M5)\b/i.test(trimmed) || /^S[0-9.]+/i.test(trimmed)) return PATH_WAIT_MS
   return LINE_TIMEOUT_MS
 }
 
