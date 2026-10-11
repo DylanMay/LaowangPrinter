@@ -12,6 +12,8 @@ const LINE_TIMEOUT_MS = 1500
 const MOTION_TIMEOUT_MS = 60_000
 /** 关光要等整段路径走完；慢走的小床一圈可能超过 1 分钟。 */
 const PATH_WAIT_MS = 600_000
+/** 还没看见 Run 时，不要把“队列还没起步”的 Idle 当成已经刻完。 */
+const MOTION_ARM_MS = 800
 /** 星光4N 的 Nano 旧引导程序约 2 秒；等欢迎信息，不要在引导期内放弃。 */
 const VERSION_WAIT_MS = 2600
 
@@ -428,24 +430,45 @@ export class GrblController {
   /**
    * 开光/关光会等移动走完才应答。必须先拿到新的状态，不能把上一刀的空闲当成已经停。
    * shouldYield 为真时先返回，让发送循环去处理暂停或停止。
+   * requireMotion 用于关光：头还没从 Idle 进入 Run 时不能发 M5，否则这一笔后半段没有光。
    */
-  async waitUntilIdle(ms = PATH_WAIT_MS, shouldYield?: () => boolean): Promise<void> {
-    const idle = () => {
+  async waitUntilIdle(ms = PATH_WAIT_MS, shouldYield?: () => boolean, requireMotion = false): Promise<void> {
+    const stopped = () => {
+      const report = this.lastReport
+      if (!report || report.feed !== 0) return false
+      return report.state === 'Idle' || report.state === 'Alarm' || report.state === 'Sleep'
+    }
+    const moving = () => {
       const report = this.lastReport
       if (!report) return false
-      if (report.state !== 'Idle' && report.state !== 'Alarm' && report.state !== 'Sleep') return false
-      return report.feed === 0
+      return report.state === 'Run' || report.state === 'Jog' || report.feed > 0
     }
     const deadline = Date.now() + ms
+    let seenMotion = false
+    let idleSince: number | null = null
     while (Date.now() < deadline) {
       if (shouldYield?.()) return
       const epoch = this.statusEpoch
       await this.refreshStatus()
       if (shouldYield?.()) return
-      if (this.statusEpoch > epoch && idle()) return
-      if (await this.waitFor(() => (shouldYield?.() ?? false) || (this.statusEpoch > epoch && idle()), 120)) {
-        return
+      if (this.statusEpoch <= epoch) {
+        await this.waitFor(() => shouldYield?.() ?? false, 80)
+        continue
       }
+      if (moving()) {
+        seenMotion = true
+        idleSince = null
+        await this.waitFor(() => shouldYield?.() ?? false, 120)
+        continue
+      }
+      if (!stopped()) {
+        await this.waitFor(() => shouldYield?.() ?? false, 80)
+        continue
+      }
+      if (!requireMotion || seenMotion) return
+      if (idleSince === null) idleSince = Date.now()
+      if (Date.now() - idleSince >= MOTION_ARM_MS) return
+      await this.waitFor(() => shouldYield?.() ?? false, 120)
     }
     if (shouldYield?.()) return
     throw new Error('GRBL timeout')

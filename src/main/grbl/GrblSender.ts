@@ -134,7 +134,13 @@ export class GrblSender {
         this.currentLine = line
         this.emitProgress()
         if (isSpindleSync(line)) {
-          await this.controller.waitUntilIdle(idleBudgetMs(this.estimatedTime), () => this.state !== 'running')
+          const previous = this.lines[this.index - 1] ?? ''
+          const motionQueued = /^(G0|G1|G2|G3)\b/i.test(previous.trim())
+          await this.controller.waitUntilIdle(
+            idleBudgetMs(this.estimatedTime),
+            () => this.state !== 'running',
+            /^M5\b/i.test(line.trim()) && motionQueued,
+          )
         }
         if (this.shouldStop()) return
         if (this.state !== 'running') {

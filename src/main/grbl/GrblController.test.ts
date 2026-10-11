@@ -309,6 +309,21 @@ describe('GrblController', () => {
     await serial.disconnect()
   })
 
+  it('关光前不会把还没起步的 Idle 当成这一笔已经结束', async () => {
+    const backend = createMockEngraverBackend({ settings: { 22: 0, 130: 50, 131: 200 } })
+    const serial = new SerialManager(backend)
+    const controller = new GrblController(serial)
+    running.push(controller)
+    await serial.connect('mock://engraver')
+    await controller.identify()
+    const started = Date.now()
+    await controller.waitUntilIdle(3000, undefined, true)
+    const elapsed = Date.now() - started
+    expect(elapsed).toBeGreaterThanOrEqual(700)
+    expect(elapsed).toBeLessThan(2500)
+    await serial.disconnect()
+  })
+
   it('没有激光模式参数的旧固件仍能完成识别', async () => {
     const backend = createMockEngraverBackend({ unknownSettings: [32] })
     const serial = new SerialManager(backend)

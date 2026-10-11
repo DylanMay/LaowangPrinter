@@ -146,6 +146,39 @@ describe('SvgParser', () => {
     expect(JSON.stringify(doc)).not.toMatch(/<svg|viewBox|path d=/i)
   })
 
+  it('大 viewBox 的弯线按毫米弦高采样，不会切成碎步', () => {
+    const doc = parseSvg(
+      '<svg width="40mm" height="40mm" viewBox="0 0 1000 1000"><path d="M0 0 C0 1000 1000 1000 1000 0"/></svg>',
+    )
+    const points = doc.paths[0]?.points ?? []
+    expect(points.length).toBeGreaterThan(4)
+    expect(points.length).toBeLessThan(80)
+    expect(points[0]).toEqual({ x: 0, y: 0 })
+    expect(points.at(-1)?.x).toBeCloseTo(40, 4)
+    expect(points.at(-1)?.y).toBeCloseTo(0, 4)
+  })
+
+  it('二次曲线和圆弧走到终点，而不是丢掉命令', () => {
+    const quad = parseSvg(
+      '<svg width="20mm" height="20mm" viewBox="0 0 20 20"><path d="M0 0 Q10 20 20 0"/></svg>',
+    )
+    const quadPoints = quad.paths[0]?.points ?? []
+    expect(quadPoints.at(-1)).toEqual({ x: 20, y: 0 })
+    const peak = quadPoints.reduce((max, point) => (point.y > max.y ? point : max), quadPoints[0]!)
+    expect(peak.y).toBeGreaterThan(8)
+
+    const arc = parseSvg(
+      '<svg width="20mm" height="20mm" viewBox="0 0 20 20"><path d="M2 10 A8 8 0 0 1 18 10"/></svg>',
+    )
+    const arcPoints = arc.paths[0]?.points ?? []
+    expect(arcPoints.length).toBeGreaterThan(4)
+    expect(arcPoints[0]).toEqual({ x: 2, y: 10 })
+    expect(arcPoints.at(-1)?.x).toBeCloseTo(18, 4)
+    expect(arcPoints.at(-1)?.y).toBeCloseTo(10, 4)
+    const top = arcPoints.reduce((max, point) => (point.y < max.y ? point : max), arcPoints[0]!)
+    expect(top.y).toBeLessThan(4)
+  })
+
   it('相对 path 与绝对 path 结果一致', () => {
     const absolute = parseSvg(
       '<svg width="10mm" height="10mm" viewBox="0 0 10 10"><path d="M1 1 L9 1 9 9 1 9 Z"/></svg>',
