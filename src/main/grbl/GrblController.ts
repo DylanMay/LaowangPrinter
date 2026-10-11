@@ -10,6 +10,8 @@ import type { GrblStatusReport } from './types'
 
 const LINE_TIMEOUT_MS = 1500
 const MOTION_TIMEOUT_MS = 60_000
+/** 关光要等整段路径走完；慢走的小床一圈可能超过 1 分钟。 */
+const PATH_WAIT_MS = 600_000
 /** 星光4N 的 Nano 旧引导程序约 2 秒；等欢迎信息，不要在引导期内放弃。 */
 const VERSION_WAIT_MS = 2600
 
@@ -31,6 +33,7 @@ export class GrblController {
   private chain: Promise<void> = Promise.resolve()
   private pollTimer: ReturnType<typeof setInterval> | null = null
   private lastReport: GrblStatusReport | null = null
+  private statusEpoch = 0
   private lastAlarm: string | null = null
   private lastError: string | null = null
   private laserHeld = false
@@ -332,7 +335,9 @@ export class GrblController {
       return
     }
     if (message.kind === 'status') {
+      this.statusSerial += 1
       this.lastReport = message.report
+      this.statusEpoch += 1
       if (message.report.state !== 'Alarm') this.unlockNeeded = false
       this.emitter.emit('status', message.report)
     }
@@ -421,19 +426,29 @@ export class GrblController {
     return report.state === 'Hold' && !report.holdPending && report.feed === 0
   }
 
-  /** 开光/关光会等移动走完才应答。先等到 Idle，避免关光把任务拖死。 */
-  async waitUntilIdle(ms = 60_000): Promise<void> {
+  /** 开光/关光会等移动走完才应答。必须先拿到新的状态，不能把上一刀的空闲当成已经停。 */
+  async waitUntilIdle(ms = PATH_WAIT_MS): Promise<void> {
     const idle = () => {
-      const state = this.lastReport?.state
-      return state === 'Idle' || state === 'Alarm' || state === 'Sleep'
+      const report = this.lastReport
+      if (!report) return false
+      if (report.state !== 'Idle' && report.state !== 'Alarm' && report.state !== 'Sleep') return false
+      return report.feed === 0
     }
     const deadline = Date.now() + ms
-    await this.writeRealtime(REALTIME_STATUS)
+    await this.refreshStatus()
     if (idle()) return
     while (Date.now() < deadline) {
-      await this.writeRealtime(REALTIME_STATUS)
+      await this.refreshStatus()
+      if (idle()) return
       if (await this.waitFor(idle, 120)) return
     }
+    throw new Error('GRBL timeout')
+  }
+
+  private async refreshStatus(): Promise<void> {
+    const epoch = this.statusEpoch
+    await this.writeRealtime(REALTIME_STATUS)
+    await this.waitFor(() => this.statusEpoch > epoch, 300)
   }
 
   /** Hold:1 / 进给不为 0 时还在减速，这时复位会 ALARM:3。 */
@@ -476,6 +491,7 @@ export class GrblController {
     this.parserState = null
     this.settings = new Map()
     this.lastReport = null
+    this.statusSerial = 0
     this.config = null
     this.laserHeld = false
     this.restoreLaserMode = null

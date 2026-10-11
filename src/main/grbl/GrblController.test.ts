@@ -258,6 +258,38 @@ describe('GrblController', () => {
     await serial.disconnect()
   })
 
+  it('关光前不会把排队前的 Idle 当成已经停稳', async () => {
+    const backend = createMockEngraverBackend({ delayMotionMs: 450, settings: { 22: 0, 130: 50, 131: 200 } })
+    const serial = new SerialManager(backend)
+    const controller = new GrblController(serial)
+    running.push(controller)
+    await serial.connect('mock://engraver')
+    await controller.identify()
+    expect(controller.machineState).toBe('idle')
+    const pending = controller.sendLine('G1 X40 F120', 5000)
+    await waitUntil(() => backend.firmware.state === 'Run')
+    const started = Date.now()
+    await controller.waitUntilIdle(3000)
+    expect(Date.now() - started).toBeGreaterThanOrEqual(250)
+    expect(backend.firmware.state).toBe('Idle')
+    await pending
+    await serial.disconnect()
+  })
+
+  it('运动一直不停时等待会超时，而不是立刻返回', async () => {
+    const backend = createMockEngraverBackend({ delayMotionMs: 5000, settings: { 22: 0, 130: 50, 131: 200 } })
+    const serial = new SerialManager(backend)
+    const controller = new GrblController(serial)
+    running.push(controller)
+    await serial.connect('mock://engraver')
+    await controller.identify()
+    const pending = controller.sendLine('G1 X40 F120', 5000)
+    await waitUntil(() => backend.firmware.state === 'Run')
+    await expect(controller.waitUntilIdle(400)).rejects.toThrow(/GRBL timeout/)
+    await pending
+    await serial.disconnect()
+  })
+
   it('没有激光模式参数的旧固件仍能完成识别', async () => {
     const backend = createMockEngraverBackend({ unknownSettings: [32] })
     const serial = new SerialManager(backend)
@@ -268,6 +300,26 @@ describe('GrblController', () => {
     expect(config.laserMode).toBe(false)
     expect(config.minPower).toBe(0)
     expect(config.grblVersion).toBe('1.1h')
+    await serial.disconnect()
+  })
+
+  it('关光前不把上一刀的空闲当成已经停，会等到进给真正结束', async () => {
+    const backend = createMockEngraverBackend({
+      settings: { 22: 0, 130: 50, 131: 200 },
+      delayMotionMs: 400,
+    })
+    const serial = new SerialManager(backend)
+    const controller = new GrblController(serial)
+    running.push(controller)
+    await serial.connect('mock://engraver')
+    await controller.identify()
+    const motion = controller.sendLine('G1 X10 F120', 5000)
+    await waitUntil(() => backend.firmware.state === 'Run')
+    const started = Date.now()
+    await controller.waitUntilIdle()
+    expect(Date.now() - started).toBeGreaterThan(250)
+    expect(backend.firmware.state).toBe('Idle')
+    await motion
     await serial.disconnect()
   })
 })

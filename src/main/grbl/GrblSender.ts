@@ -9,6 +9,7 @@ import { GrblController } from './GrblController'
 
 const LINE_TIMEOUT_MS = 1500
 const MOTION_TIMEOUT_MS = 60_000
+const PATH_WAIT_MS = 600_000
 
 type SenderEvents = {
   progress: [JobProgress]
@@ -133,10 +134,15 @@ export class GrblSender {
         this.currentLine = line
         this.emitProgress()
         if (isSpindleSync(line)) {
-          await this.controller.waitUntilIdle()
+          await this.controller.waitUntilIdle(idleBudgetMs(this.estimatedTime), () => this.state !== 'running')
         }
         if (this.shouldStop()) return
-        await this.controller.sendLine(line, timeoutFor(line), !this.dryRun)
+        if (this.state !== 'running') {
+          await this.waitWhilePaused()
+          continue
+        }
+        const budget = isSpindleSync(line) ? idleBudgetMs(this.estimatedTime) : timeoutFor(line)
+        await this.controller.sendLine(line, budget, !this.dryRun)
         if (this.shouldStop()) return
         this.index += 1
         this.currentLine = ''
@@ -245,11 +251,17 @@ function isLaserOn(line: string): boolean {
   return Boolean(spindle && Number(spindle[1]) > 0)
 }
 
+/** 关光要等整段刀路走完。预算按整次任务的预计时间，并留出余量。 */
+export function idleBudgetMs(estimatedSeconds: number): number {
+  const fromJob = Math.ceil(Math.max(0, estimatedSeconds) * 1000) + 30_000
+  return Math.max(MOTION_TIMEOUT_MS, fromJob)
+}
+
 export function timeoutFor(line: string): number {
   const trimmed = line.trim()
   if (/^(G0|G1|G2|G3)\b/i.test(trimmed) || /^(\$H|\$J=)/i.test(trimmed)) return MOTION_TIMEOUT_MS
   // M3/M5/S 会等前面的移动走完再应答，不能按短超时算。
-  if (/^(M3|M4|M5)\b/i.test(trimmed) || /^S[0-9.]+/i.test(trimmed)) return MOTION_TIMEOUT_MS
+  if (/^(M3|M4|M5)\b/i.test(trimmed) || /^S[0-9.]+/i.test(trimmed)) return PATH_WAIT_MS
   return LINE_TIMEOUT_MS
 }
 
