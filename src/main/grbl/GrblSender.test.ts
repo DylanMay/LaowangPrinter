@@ -204,9 +204,9 @@ describe('GrblSender', () => {
 
   it('开光和关光按移动时间等待应答', () => {
     expect(timeoutFor('G0 X7 Y118')).toBe(60_000)
-    expect(timeoutFor('M3 S200')).toBe(60_000)
-    expect(timeoutFor('S200')).toBe(60_000)
-    expect(timeoutFor('M5')).toBe(60_000)
+    expect(timeoutFor('M3 S200')).toBe(600_000)
+    expect(timeoutFor('S200')).toBe(600_000)
+    expect(timeoutFor('M5')).toBe(600_000)
     expect(timeoutFor('G21')).toBe(1500)
   })
 
