@@ -31,6 +31,8 @@ export class GrblController {
   private chain: Promise<void> = Promise.resolve()
   private pollTimer: ReturnType<typeof setInterval> | null = null
   private lastReport: GrblStatusReport | null = null
+  /** 每收到一条状态就加一，用来丢掉等待开始前的旧 Idle。 */
+  private statusSerial = 0
   private lastAlarm: string | null = null
   private lastError: string | null = null
   private laserHeld = false
@@ -332,6 +334,7 @@ export class GrblController {
       return
     }
     if (message.kind === 'status') {
+      this.statusSerial += 1
       this.lastReport = message.report
       if (message.report.state !== 'Alarm') this.unlockNeeded = false
       this.emitter.emit('status', message.report)
@@ -421,19 +424,36 @@ export class GrblController {
     return report.state === 'Hold' && !report.holdPending && report.feed === 0
   }
 
-  /** 开光/关光会等移动走完才应答。先等到 Idle，避免关光把任务拖死。 */
-  async waitUntilIdle(ms = 60_000): Promise<void> {
-    const idle = () => {
-      const state = this.lastReport?.state
-      return state === 'Idle' || state === 'Alarm' || state === 'Sleep'
-    }
+  /**
+   * 开光/关光要等缓冲区里的移动走完才应答。
+   * 必须看到这次等待之后的新状态；连接时留下的 Idle 不能算停稳。
+   * 机器还在 Run 时一直等到停，超时才抛错，避免提前发 M5 把任务掐掉。
+   */
+  async waitUntilIdle(ms = 60_000, shouldYield?: () => boolean): Promise<void> {
     const deadline = Date.now() + ms
-    await this.writeRealtime(REALTIME_STATUS)
-    if (idle()) return
+    let seen = this.statusSerial
+    let idleStreak = 0
     while (Date.now() < deadline) {
+      if (shouldYield?.()) return
       await this.writeRealtime(REALTIME_STATUS)
-      if (await this.waitFor(idle, 120)) return
+      const updated = await this.waitFor(() => this.statusSerial !== seen, 400)
+      if (!updated) {
+        idleStreak = 0
+        continue
+      }
+      seen = this.statusSerial
+      const state = this.lastReport?.state
+      if (state === 'Alarm' || state === 'Sleep') return
+      if (state === 'Idle') {
+        idleStreak += 1
+        if (idleStreak >= 2) return
+        continue
+      }
+      idleStreak = 0
+      if (await this.waitFor(() => shouldYield?.() ?? false, 200)) return
     }
+    if (shouldYield?.()) return
+    throw new Error('GRBL timeout')
   }
 
   /** Hold:1 / 进给不为 0 时还在减速，这时复位会 ALARM:3。 */
@@ -476,6 +496,7 @@ export class GrblController {
     this.parserState = null
     this.settings = new Map()
     this.lastReport = null
+    this.statusSerial = 0
     this.config = null
     this.laserHeld = false
     this.restoreLaserMode = null
