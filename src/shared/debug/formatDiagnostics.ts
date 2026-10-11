@@ -12,7 +12,7 @@ export type DiagnosticsInput = {
   lastAlarm: string | null
   lastError: string | null
   serialLog: string[]
-  job?: Pick<JobProgress, 'sentLines' | 'totalLines' | 'currentLine' | 'dryRun' | 'state'>
+  job?: Pick<JobProgress, 'sentLines' | 'totalLines' | 'currentLine' | 'dryRun' | 'state' | 'errorMessage'>
 }
 
 export function formatDiagnostics(input: DiagnosticsInput): string {
@@ -46,6 +46,7 @@ export function formatDiagnostics(input: DiagnosticsInput): string {
     job
       ? `任务 ${job.state} ${job.sentLines}/${job.totalLines}${job.dryRun ? ' 空载' : ''}`
       : '任务 —',
+    `任务说明 ${job?.errorMessage || '—'}`,
     `当前 ${job?.currentLine || '—'}`,
     '',
     '参数',

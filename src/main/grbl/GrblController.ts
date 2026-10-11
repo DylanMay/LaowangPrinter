@@ -421,6 +421,21 @@ export class GrblController {
     return report.state === 'Hold' && !report.holdPending && report.feed === 0
   }
 
+  /** 开光/关光会等移动走完才应答。先等到 Idle，避免关光把任务拖死。 */
+  async waitUntilIdle(ms = 60_000): Promise<void> {
+    const idle = () => {
+      const state = this.lastReport?.state
+      return state === 'Idle' || state === 'Alarm' || state === 'Sleep'
+    }
+    const deadline = Date.now() + ms
+    await this.writeRealtime(REALTIME_STATUS)
+    if (idle()) return
+    while (Date.now() < deadline) {
+      await this.writeRealtime(REALTIME_STATUS)
+      if (await this.waitFor(idle, 120)) return
+    }
+  }
+
   /** Hold:1 / 进给不为 0 时还在减速，这时复位会 ALARM:3。 */
   private async waitUntilStopped(ms = 5000): Promise<void> {
     const deadline = Date.now() + ms

@@ -132,6 +132,10 @@ export class GrblSender {
         }
         this.currentLine = line
         this.emitProgress()
+        if (isSpindleSync(line)) {
+          await this.controller.waitUntilIdle()
+        }
+        if (this.shouldStop()) return
         await this.controller.sendLine(line, timeoutFor(line), !this.dryRun)
         if (this.shouldStop()) return
         this.index += 1
@@ -228,6 +232,11 @@ export class GrblSender {
 export function prepareLines(lines: string[], dryRun: boolean): string[] {
   const trimmed = lines.map((line) => line.trim()).filter(Boolean)
   return dryRun ? applyDryRunSafety(trimmed) : trimmed
+}
+
+function isSpindleSync(line: string): boolean {
+  const trimmed = line.trim()
+  return /^(M3|M4|M5)\b/i.test(trimmed) || /^S[0-9.]+/i.test(trimmed)
 }
 
 function isLaserOn(line: string): boolean {

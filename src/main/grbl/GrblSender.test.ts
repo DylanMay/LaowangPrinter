@@ -173,6 +173,35 @@ describe('GrblSender', () => {
     expect(ctx.backend.firmware.spindleOn).toBe(false)
   })
 
+  it('第一块图形走完后先等停稳再关光，任务不会中断', async () => {
+    const ctx = await setup({ delayMotionMs: 600 })
+    const completed = once(ctx.sender, 'completed')
+    const errored = once(ctx.sender, 'error')
+    await ctx.sender.start({
+      lines: [
+        'G21',
+        'G90',
+        'G0 X7 Y118',
+        'M3 S1000',
+        'G1 X43 Y118 F120 S1000',
+        'G1 X43 Y82 S1000',
+        'G1 X7 Y82 S1000',
+        'G1 X7 Y118 S1000',
+        'M5',
+        'G0 X9 Y116',
+      ],
+      estimatedTime: 8,
+      dryRun: false,
+    })
+    const result = await Promise.race([
+      completed.then((progress) => progress),
+      errored.then((progress) => progress),
+    ])
+    expect(result.state).toBe('completed')
+    expect(result.errorMessage).toBeUndefined()
+    expect(result.sentLines).toBe(10)
+  })
+
   it('开光和关光按移动时间等待应答', () => {
     expect(timeoutFor('G0 X7 Y118')).toBe(60_000)
     expect(timeoutFor('M3 S200')).toBe(60_000)
