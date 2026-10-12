@@ -1,5 +1,6 @@
 import { COPY } from '@shared/copy'
 import { DropZone } from '../components/DropZone'
+import { ExamplePicker } from '../components/ExamplePicker'
 import { SizeSetup } from '../components/SizeSetup'
 import { useAppStore } from '../store/appStore'
 
@@ -26,14 +27,17 @@ export function HomePage() {
         : COPY.connectDevice
 
   return (
-    <main className="flex flex-1 flex-col items-center justify-center gap-7 px-6">
+    <main className="flex min-h-0 flex-1 flex-col items-center gap-6 overflow-y-auto px-6 py-6">
       <h1 className="text-4xl font-semibold tracking-[0.08em]">{COPY.homeTitle}</h1>
       <p className="-mt-4 text-[15px] text-muted">{COPY.homeLead}</p>
 
       {connected && needsSizeSetup ? (
         <SizeSetup />
       ) : guideOpen ? null : (
-        <DropZone />
+        <>
+          <DropZone />
+          <ExamplePicker />
+        </>
       )}
 
       {connected ? (

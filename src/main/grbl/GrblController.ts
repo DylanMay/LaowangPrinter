@@ -335,7 +335,6 @@ export class GrblController {
       return
     }
     if (message.kind === 'status') {
-      this.statusSerial += 1
       this.lastReport = message.report
       this.statusEpoch += 1
       if (message.report.state !== 'Alarm') this.unlockNeeded = false
@@ -427,7 +426,7 @@ export class GrblController {
   }
 
   /** 开光/关光会等移动走完才应答。必须先拿到新的状态，不能把上一刀的空闲当成已经停。 */
-  async waitUntilIdle(ms = PATH_WAIT_MS): Promise<void> {
+  async waitUntilIdle(ms = PATH_WAIT_MS, cancelled: () => boolean = () => false): Promise<void> {
     const idle = () => {
       const report = this.lastReport
       if (!report) return false
@@ -436,12 +435,14 @@ export class GrblController {
     }
     const deadline = Date.now() + ms
     await this.refreshStatus()
-    if (idle()) return
+    if (cancelled() || idle()) return
     while (Date.now() < deadline) {
+      if (cancelled()) return
       await this.refreshStatus()
-      if (idle()) return
-      if (await this.waitFor(idle, 120)) return
+      if (cancelled() || idle()) return
+      if (await this.waitFor(() => cancelled() || idle(), 120)) return
     }
+    if (cancelled() || idle()) return
     throw new Error('GRBL timeout')
   }
 
@@ -491,7 +492,7 @@ export class GrblController {
     this.parserState = null
     this.settings = new Map()
     this.lastReport = null
-    this.statusSerial = 0
+    this.statusEpoch = 0
     this.config = null
     this.laserHeld = false
     this.restoreLaserMode = null

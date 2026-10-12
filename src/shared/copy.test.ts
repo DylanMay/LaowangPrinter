@@ -32,6 +32,9 @@ describe('普通用户文案', () => {
   it('导入图案使用选择文件，不出现解析术语', () => {
     expect(COPY.selectFile).toBe('选择文件')
     expect(COPY.dropHintConnected).toContain('选择 SVG 文件')
+    expect(COPY.examplesTitle).toBe('从示例开始')
+    expect(COPY.examplesHint).toContain('简笔画')
+    expect(COPY.exampleWords).toBe('文字')
     expect(COPY.importEmpty).toContain('可雕刻的线条')
     expect(COPY.importLines).toBe('条线条')
   })
