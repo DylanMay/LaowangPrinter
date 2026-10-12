@@ -258,6 +258,35 @@ describe('GrblController', () => {
     await serial.disconnect()
   })
 
+  it('小床上下步数跟左右不一致时改成一样，正方形才不会被拉长', async () => {
+    const backend = createMockEngraverBackend({
+      settings: { 100: 106.666, 101: 250, 130: 50, 131: 200 },
+    })
+    const serial = new SerialManager(backend)
+    const controller = new GrblController(serial)
+    running.push(controller)
+    await serial.connect('mock://engraver')
+    await controller.identify()
+    expect(backend.firmware.settings[101]).toBe(106.666)
+    expect(backend.firmware.settings[100]).toBe(106.666)
+    expect(serialWrites(backend)).toMatch(/\$101=106\.666/)
+    await serial.disconnect()
+  })
+
+  it('大床两轴步数不同时保持原样', async () => {
+    const backend = createMockEngraverBackend({
+      settings: { 100: 80, 101: 250, 130: 300, 131: 200 },
+    })
+    const serial = new SerialManager(backend)
+    const controller = new GrblController(serial)
+    running.push(controller)
+    await serial.connect('mock://engraver')
+    await controller.identify()
+    expect(backend.firmware.settings[101]).toBe(250)
+    expect(serialWrites(backend)).not.toMatch(/\$101=/)
+    await serial.disconnect()
+  })
+
   it('关光前不会把排队前的 Idle 当成已经停稳', async () => {
     const backend = createMockEngraverBackend({ delayMotionMs: 450, settings: { 22: 0, 130: 50, 131: 200 } })
     const serial = new SerialManager(backend)

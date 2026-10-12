@@ -379,7 +379,25 @@ export class GrblController {
     if (this.isCompactOrUnsetMachine()) {
       if ((this.settings.get(20) ?? 0) !== 0) await this.trySetSetting(20, 0)
       if ((this.settings.get(21) ?? 0) !== 0) await this.trySetSetting(21, 0)
+      await this.squareAxisSteps()
     }
+  }
+
+  /**
+   * 这类小床左右、上下是同一套机构。固件常把上下写成 250、左右写成 106.666。
+   * 命令同样的毫米时，上下会多走出一倍多，正方形就变成竖着的长方形。
+   * 上下改成和左右一样。大床的两轴可能本来就不同，不动。
+   */
+  private async squareAxisSteps(): Promise<void> {
+    const xSteps = this.settings.get(100)
+    const ySteps = this.settings.get(101)
+    if (xSteps === undefined || ySteps === undefined || xSteps <= 0) return
+    if (Math.abs(xSteps - ySteps) < 0.05) return
+    const width = this.settings.get(130)
+    const height = this.settings.get(131)
+    const narrow = width !== undefined && height !== undefined && Math.min(width, height) <= COMPACT_BED_MAX_MM
+    if (!narrow) return
+    await this.trySetSetting(101, xSteps)
   }
 
   private isCompactOrUnsetMachine(): boolean {
