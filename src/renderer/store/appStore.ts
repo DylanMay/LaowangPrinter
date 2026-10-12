@@ -18,6 +18,7 @@ import {
   scalePlacement,
 } from '@shared/geometry/CoordinateTransformer'
 import { COPY } from '@shared/copy'
+import { exampleById } from '@shared/examples/artwork'
 import { checkJobSafety } from '@shared/job/SafetyChecker'
 import { jobGcode } from '../gcode/jobGcode'
 import { create } from 'zustand'
@@ -62,6 +63,7 @@ type AppStore = {
   submitSize: (widthMm: number, heightMm: number) => Promise<void>
   openSvg: () => Promise<void>
   importDropped: (file: File) => Promise<void>
+  useExample: (id: string) => void
   showNotice: (message: string) => void
   openPanel: (view?: PanelView) => void
   closePanel: () => void
@@ -280,6 +282,15 @@ export const useAppStore = create<AppStore>((set, get) => ({
     } catch (error) {
       set({ notice: fileErrorMessage(error) })
     }
+  },
+  useExample: (id) => {
+    const example = exampleById(id)
+    if (!example) return
+    if (get().deviceState !== 'connected') {
+      set({ notice: COPY.examplesNeedDevice })
+      return
+    }
+    applyImport(set, get, { fileName: example.name, document: example.document })
   },
   showNotice: (message) => set({ notice: message }),
   openPanel: (view = 'settings') => {
