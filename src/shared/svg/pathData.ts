@@ -8,7 +8,7 @@ type Segment = {
   nums: number[]
 }
 
-export function parsePathData(d: string): Path[] {
+export function parsePathData(d: string, flatness = 0.05): Path[] {
   const segments = tokenize(d)
   const paths: Path[] = []
   let current: Point[] = []
@@ -86,7 +86,7 @@ export function parsePathData(d: string): Path[] {
         const c1 = apply(pen, nums[base]!, nums[base + 1]!, relative)
         const c2 = apply(pen, nums[base + 2]!, nums[base + 3]!, relative)
         const end = apply(pen, nums[base + 4]!, nums[base + 5]!, relative)
-        const flattened = flattenCubic(pen, c1, c2, end)
+        const flattened = flattenCubic(pen, c1, c2, end, flatness)
         for (const point of flattened.slice(1)) pushPoint(current, point)
         pen = end
       }

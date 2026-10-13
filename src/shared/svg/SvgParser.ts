@@ -18,13 +18,14 @@ export function parseSvg(source: string): SvgDocument {
   }
   const viewport = resolveViewport(parseAttributes(root[1] ?? ''))
   const paths: Path[] = []
+  const flatness = chordFlatness(viewport)
 
   ELEMENT.lastIndex = 0
   let match: RegExpExecArray | null
   while ((match = ELEMENT.exec(markup))) {
     const name = match[1]!.toLowerCase()
     const attrs = parseAttributes(match[2] ?? '')
-    for (const path of elementToPaths(name, attrs)) {
+    for (const path of elementToPaths(name, attrs, flatness)) {
       const mapped = mapPath(path, viewport)
       if (mapped.points.length >= 2) paths.push(mapped)
     }
@@ -51,7 +52,16 @@ function parseAttributes(raw: string): Record<string, string> {
   return attrs
 }
 
-function elementToPaths(name: string, attrs: Record<string, string>): Path[] {
+/** 弦高约 0.04 mm。按用户单位换算，避免大画布把弯线切成激光会灭掉的碎步。 */
+function chordFlatness(viewport: Viewport): number {
+  const mmPerUserX = viewport.widthMm / viewport.viewBox.width
+  const mmPerUserY = viewport.heightMm / viewport.viewBox.height
+  const mmPerUser = Math.min(Math.abs(mmPerUserX), Math.abs(mmPerUserY))
+  if (!Number.isFinite(mmPerUser) || mmPerUser <= 0) return 0.04
+  return 0.04 / mmPerUser
+}
+
+function elementToPaths(name: string, attrs: Record<string, string>, flatness: number): Path[] {
   switch (name) {
     case 'line':
       return linePath(attrs)
@@ -60,13 +70,13 @@ function elementToPaths(name: string, attrs: Record<string, string>): Path[] {
     case 'polygon':
       return polylinePath(attrs, true)
     case 'rect':
-      return rectPath(attrs)
+      return rectPath(attrs, flatness)
     case 'circle':
-      return ellipsePath(num(attrs.cx), num(attrs.cy), num(attrs.r), num(attrs.r))
+      return ellipsePath(num(attrs.cx), num(attrs.cy), num(attrs.r), num(attrs.r), flatness)
     case 'ellipse':
-      return ellipsePath(num(attrs.cx), num(attrs.cy), num(attrs.rx), num(attrs.ry))
+      return ellipsePath(num(attrs.cx), num(attrs.cy), num(attrs.rx), num(attrs.ry), flatness)
     case 'path':
-      return attrs.d ? parsePathData(attrs.d) : []
+      return attrs.d ? parsePathData(attrs.d, flatness) : []
     default:
       return []
   }
@@ -92,7 +102,7 @@ function polylinePath(attrs: Record<string, string>, close: boolean): Path[] {
   return [{ points }]
 }
 
-function rectPath(attrs: Record<string, string>): Path[] {
+function rectPath(attrs: Record<string, string>, flatness: number): Path[] {
   const x = num(attrs.x)
   const y = num(attrs.y)
   const width = num(attrs.width)
@@ -127,10 +137,10 @@ function rectPath(attrs: Record<string, string>): Path[] {
     `C ${x} ${y + ry * (1 - KAPPA)} ${x + rx * (1 - KAPPA)} ${y} ${x + rx} ${y}`,
     'Z',
   ].join(' ')
-  return parsePathData(d)
+  return parsePathData(d, flatness)
 }
 
-function ellipsePath(cx: number, cy: number, rx: number, ry: number): Path[] {
+function ellipsePath(cx: number, cy: number, rx: number, ry: number, flatness: number): Path[] {
   if (rx <= 0 || ry <= 0) return []
   const kx = rx * KAPPA
   const ky = ry * KAPPA
@@ -160,7 +170,7 @@ function ellipsePath(cx: number, cy: number, rx: number, ry: number): Path[] {
   const points: Point[] = [start]
   let pen = start
   for (const [c1, c2, end] of cubics) {
-    const flat = flattenCubic(pen, c1, c2, end)
+    const flat = flattenCubic(pen, c1, c2, end, flatness)
     points.push(...flat.slice(1))
     pen = end
   }
