@@ -168,4 +168,36 @@ describe('GCodeGenerator', () => {
     expect(desk.lines).toContain('M3 S200')
     expect(desk.lines.some((line) => / F1000 S200$/.test(line))).toBe(true)
   })
+
+  it('碎步合成不少于光斑的一段，单独的短笔画仍保留', () => {
+    const dusty: SvgDocument = {
+      widthMm: 10,
+      heightMm: 2,
+      paths: [
+        { points: Array.from({ length: 101 }, (_, index) => ({ x: index * 0.05, y: 0 })) },
+        {
+          points: [
+            { x: 0, y: 1 },
+            { x: 1.2, y: 1 },
+          ],
+        },
+      ],
+    }
+    const result = generateJobGcode({
+      document: dusty,
+      placement: { xMm: 0, yMm: 0, widthMm: 10, heightMm: 2 },
+      workArea: { widthMm: 50, heightMm: 200 },
+      maxPower: 1000,
+      material: 'wood',
+      thicknessMm: 3,
+      effect: 'deep',
+    })
+    const moves = result.lines.filter((line) => line.startsWith('G1 '))
+    const curve = moves.filter((line) => line.includes(' Y200'))
+    expect(curve.length).toBeGreaterThan(10)
+    expect(curve.length).toBeLessThan(40)
+    const short = moves.filter((line) => line.includes(' Y199'))
+    expect(short).toHaveLength(1)
+    expect(short[0]).toMatch(/X1\.2\b/)
+  })
 })

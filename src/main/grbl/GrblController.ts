@@ -12,6 +12,14 @@ const LINE_TIMEOUT_MS = 1500
 const MOTION_TIMEOUT_MS = 60_000
 /** 关光要等整段路径走完；慢走的小床一圈可能超过 1 分钟。 */
 const PATH_WAIT_MS = 600_000
+/** 还没看见走动时，不要把“队列还没起步”的空闲当成这一笔已经结束。 */
+const MOTION_ARM_MS = 800
+/**
+ * 小床固件常把加速度留在 10。短笔画还没到设定速度就要减速，
+ * 激光功率跟着实际速度下降，短线就比长直线浅。
+ * 300 能让几毫米的短笔画走满现在用的速度。已经更快的不动。
+ */
+const COMPACT_MIN_ACCEL = 300
 /** 星光4N 的 Nano 旧引导程序约 2 秒；等欢迎信息，不要在引导期内放弃。 */
 const VERSION_WAIT_MS = 2600
 
@@ -380,6 +388,7 @@ export class GrblController {
       if ((this.settings.get(20) ?? 0) !== 0) await this.trySetSetting(20, 0)
       if ((this.settings.get(21) ?? 0) !== 0) await this.trySetSetting(21, 0)
       await this.squareAxisSteps()
+      await this.raiseShortMoveAccel()
     }
   }
 
@@ -398,6 +407,22 @@ export class GrblController {
     const narrow = width !== undefined && height !== undefined && Math.min(width, height) <= COMPACT_BED_MAX_MM
     if (!narrow) return
     await this.trySetSetting(101, xSteps)
+  }
+
+  /**
+   * 只抬窄床上左右、上下这两根走线的轴。床面垂直方向不走刀，不动。
+   * 大床可能故意设得很慢，也不动。
+   */
+  private async raiseShortMoveAccel(): Promise<void> {
+    const width = this.settings.get(130)
+    const height = this.settings.get(131)
+    const narrow = width !== undefined && height !== undefined && Math.min(width, height) <= COMPACT_BED_MAX_MM
+    if (!narrow) return
+    for (const id of [120, 121]) {
+      const current = this.settings.get(id)
+      if (current === undefined || current >= COMPACT_MIN_ACCEL) continue
+      await this.trySetSetting(id, COMPACT_MIN_ACCEL)
+    }
   }
 
   private isCompactOrUnsetMachine(): boolean {
@@ -443,24 +468,53 @@ export class GrblController {
     return report.state === 'Hold' && !report.holdPending && report.feed === 0
   }
 
-  /** 开光/关光会等移动走完才应答。必须先拿到新的状态，不能把上一刀的空闲当成已经停。 */
-  async waitUntilIdle(ms = PATH_WAIT_MS, cancelled: () => boolean = () => false): Promise<void> {
-    const idle = () => {
+  /**
+   * 开光/关光会等移动走完才应答。必须先拿到新的状态，不能把上一刀的空闲当成已经停。
+   * requireMotion 用于关光：头还没开始走时不能关，否则短的这一笔没有光。
+   */
+  async waitUntilIdle(
+    ms = PATH_WAIT_MS,
+    cancelled: () => boolean = () => false,
+    requireMotion = false,
+  ): Promise<void> {
+    const stopped = () => {
+      const report = this.lastReport
+      if (!report || report.feed !== 0) return false
+      return report.state === 'Idle' || report.state === 'Alarm' || report.state === 'Sleep'
+    }
+    const moving = () => {
       const report = this.lastReport
       if (!report) return false
-      if (report.state !== 'Idle' && report.state !== 'Alarm' && report.state !== 'Sleep') return false
-      return report.feed === 0
+      return report.state === 'Run' || report.state === 'Jog' || report.feed > 0
     }
     const deadline = Date.now() + ms
-    await this.refreshStatus()
-    if (cancelled() || idle()) return
+    let seenMotion = false
+    let idleSince: number | null = null
     while (Date.now() < deadline) {
       if (cancelled()) return
+      const epoch = this.statusEpoch
       await this.refreshStatus()
-      if (cancelled() || idle()) return
-      if (await this.waitFor(() => cancelled() || idle(), 120)) return
+      if (cancelled()) return
+      if (this.statusEpoch <= epoch) {
+        await this.waitFor(() => cancelled(), 80)
+        continue
+      }
+      if (moving()) {
+        seenMotion = true
+        idleSince = null
+        await this.waitFor(() => cancelled(), 120)
+        continue
+      }
+      if (!stopped()) {
+        await this.waitFor(() => cancelled(), 80)
+        continue
+      }
+      if (!requireMotion || seenMotion) return
+      if (idleSince === null) idleSince = Date.now()
+      if (Date.now() - idleSince >= MOTION_ARM_MS) return
+      await this.waitFor(() => cancelled(), 120)
     }
-    if (cancelled() || idle()) return
+    if (cancelled()) return
     throw new Error('GRBL timeout')
   }
 

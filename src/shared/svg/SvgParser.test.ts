@@ -156,6 +156,18 @@ describe('SvgParser', () => {
     expect(relative.paths[0]?.points).toEqual(absolute.paths[0]?.points)
   })
 
+  it('大 viewBox 的弯线按毫米采样，不会切成碎步', () => {
+    const doc = parseSvg(
+      '<svg width="40mm" height="40mm" viewBox="0 0 1000 1000"><path d="M0 0 C0 1000 1000 1000 1000 0"/></svg>',
+    )
+    const points = doc.paths[0]?.points ?? []
+    expect(points.length).toBeGreaterThan(4)
+    expect(points.length).toBeLessThan(80)
+    expect(points[0]).toEqual({ x: 0, y: 0 })
+    expect(points.at(-1)?.x).toBeCloseTo(40, 4)
+    expect(points.at(-1)?.y).toBeCloseTo(0, 4)
+  })
+
   it('星光4N 示例图能解析成毫米路径', () => {
     const doc = parseSvg(readFileSync(resolve(import.meta.dirname, '../../../examples/xingguang4n-test.svg'), 'utf8'))
     expect(doc.widthMm).toBe(40)

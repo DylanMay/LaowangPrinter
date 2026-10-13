@@ -287,6 +287,52 @@ describe('GrblController', () => {
     await serial.disconnect()
   })
 
+  it('窄床加速度过低时抬高，短线才能走满速度', async () => {
+    const backend = createMockEngraverBackend({
+      settings: { 120: 10, 121: 10, 122: 10, 130: 50, 131: 200 },
+    })
+    const serial = new SerialManager(backend)
+    const controller = new GrblController(serial)
+    running.push(controller)
+    await serial.connect('mock://engraver')
+    await controller.identify()
+    expect(backend.firmware.settings[120]).toBe(300)
+    expect(backend.firmware.settings[121]).toBe(300)
+    expect(backend.firmware.settings[122]).toBe(10)
+    const blob = serialWrites(backend)
+    expect(blob).toMatch(/\$120=300/)
+    expect(blob).toMatch(/\$121=300/)
+    expect(blob).not.toMatch(/\$122=/)
+    await serial.disconnect()
+  })
+
+  it('窄床加速度已经够快时不改，大床过慢也不改', async () => {
+    const fast = createMockEngraverBackend({
+      settings: { 120: 800, 121: 800, 130: 50, 131: 200 },
+    })
+    const fastSerial = new SerialManager(fast)
+    const fastController = new GrblController(fastSerial)
+    running.push(fastController)
+    await fastSerial.connect('mock://engraver')
+    await fastController.identify()
+    expect(fast.firmware.settings[120]).toBe(800)
+    expect(serialWrites(fast)).not.toMatch(/\$120=/)
+    await fastSerial.disconnect()
+
+    const wide = createMockEngraverBackend({
+      settings: { 120: 10, 121: 10, 130: 300, 131: 200 },
+    })
+    const wideSerial = new SerialManager(wide)
+    const wideController = new GrblController(wideSerial)
+    running.push(wideController)
+    await wideSerial.connect('mock://engraver')
+    await wideController.identify()
+    expect(wide.firmware.settings[120]).toBe(10)
+    expect(wide.firmware.settings[121]).toBe(10)
+    expect(serialWrites(wide)).not.toMatch(/\$120=/)
+    await wideSerial.disconnect()
+  })
+
   it('关光前不会把排队前的 Idle 当成已经停稳', async () => {
     const backend = createMockEngraverBackend({ delayMotionMs: 450, settings: { 22: 0, 130: 50, 131: 200 } })
     const serial = new SerialManager(backend)
@@ -349,6 +395,21 @@ describe('GrblController', () => {
     expect(Date.now() - started).toBeGreaterThan(250)
     expect(backend.firmware.state).toBe('Idle')
     await motion
+    await serial.disconnect()
+  })
+
+  it('关光前不会把还没起步的空闲当成短线已经结束', async () => {
+    const backend = createMockEngraverBackend({ settings: { 22: 0, 130: 50, 131: 200 } })
+    const serial = new SerialManager(backend)
+    const controller = new GrblController(serial)
+    running.push(controller)
+    await serial.connect('mock://engraver')
+    await controller.identify()
+    const started = Date.now()
+    await controller.waitUntilIdle(3000, () => false, true)
+    const elapsed = Date.now() - started
+    expect(elapsed).toBeGreaterThanOrEqual(700)
+    expect(elapsed).toBeLessThan(2500)
     await serial.disconnect()
   })
 })
